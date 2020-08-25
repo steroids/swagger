@@ -1,0 +1,14 @@
+{
+    "name": "steroids/swagger",
+    "description": "Module for dynamic Swagger documentation generation out of source code",
+    "license": "MIT",
+    "require": {
+        "php": ">=7.4",
+        "ext-json": "*",
+        "doctrine/annotations": "^1.6",
+        "yiisoft/yii2": "^2.0"
+    },
+    "autoload": {
+        "psr-4": {"steroids\\docs\\": ""}
+    }
+}
