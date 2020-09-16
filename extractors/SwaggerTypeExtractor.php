@@ -339,8 +339,6 @@ class SwaggerTypeExtractor extends BaseObject
                                 'items' => $property,
                             ];
                         }
-                    } else {
-                        var_dump(get_class($model), $key, $model->getRelation($key));exit();
                     }
                 }
             } elseif (is_string($attributes)) {
