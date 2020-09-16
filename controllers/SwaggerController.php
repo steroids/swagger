@@ -1,40 +1,32 @@
 <?php
 
-namespace steroids\docs\controllers;
+namespace steroids\swagger\controllers;
 
 use yii\helpers\Html;
 use yii\helpers\Url;
 use yii\web\Controller;
 use yii\helpers\ArrayHelper;
 use steroids\core\components\SiteMapItem;
-use steroids\docs\models\SwaggerJson;
-use steroids\docs\extractors\SiteMapDocExtractor;
+use steroids\swagger\models\SwaggerJson;
+use steroids\swagger\extractors\SiteMapDocExtractor;
 use yii\web\Response;
 
-class DocsController extends Controller
+class SwaggerController extends Controller
 {
-    /**
-     * Relative URL that should lead to SPA Swagger viewer
-     * @example 'swagger-docs'
-     * @var string
-     */
-    public static string $baseUrl = 'docs';
+    public $redocUrl = 'https://cdn.jsdelivr.net/npm/redoc/bundles/redoc.standalone.js';
 
-    private const REDOC_URL = 'https://cdn.jsdelivr.net/npm/redoc/bundles/redoc.standalone.js';
-    private const JSON_ROUTE = ['/docs/docs/json'];
-
-    public static function siteMap()
+    public static function siteMap($baseUrl = 'api')
     {
         return [
-            'docs' => [
+            'swagger' => [
                 'label' => 'Документация',
-                'url' => ['/docs/docs/index'],
-                'urlRule' => static::$baseUrl,
+                'url' => ['index'],
+                'urlRule' => $baseUrl,
                 'items' => [
                     'json' => [
                         'visible' => false,
-                        'url' => self::JSON_ROUTE,
-                        'urlRule' => static::$baseUrl . '/swagger.json',
+                        'url' => ['json'],
+                        'urlRule' => $baseUrl . '/swagger.json',
                     ],
                 ],
             ],
@@ -48,10 +40,10 @@ class DocsController extends Controller
     public function actionIndex()
     {
         $this->layout = '@steroids/core/views/layout-blank';
-        $this->view->registerJsFile(self::REDOC_URL);
+        $this->view->registerJsFile($this->redocUrl);
 
         return $this->renderContent(
-            Html::tag('redoc', '', ['spec-url' => Url::to(self::JSON_ROUTE)])
+            Html::tag('redoc', '', ['spec-url' => Url::to(['/swagger/swagger/json'])])
         );
     }
 
