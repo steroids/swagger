@@ -1,6 +1,6 @@
 <?php
 
-namespace steroids\docs\helpers;
+namespace steroids\swagger\helpers;
 
 use Doctrine\Common\Annotations\TokenParser;
 use function PHPSTORM_META\type;

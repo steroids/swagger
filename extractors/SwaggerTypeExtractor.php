@@ -1,6 +1,6 @@
 <?php
 
-namespace steroids\docs\extractors;
+namespace steroids\swagger\extractors;
 
 use Doctrine\Common\Annotations\TokenParser;
 use steroids\core\base\BaseSchema;
@@ -229,7 +229,7 @@ class SwaggerTypeExtractor extends BaseObject
             $attributes = explode('.', $attributes);
             $attribute = array_shift($attributes);
 
-            if ($model instanceof BaseActiveRecord && $relation = $model->getRelation($attribute, false)) {
+            if ($model instanceof BaseActiveRecord && $relation = $this->safeGetRelation($model, $attribute)) {
                 // Relation
                 /** @var Model|ActiveRecord $relationModel */
                 $relationModelClass = $relation->modelClass;
@@ -315,28 +315,33 @@ class SwaggerTypeExtractor extends BaseObject
             $attributeType = $this->findAttributeType($className, $key);
 
             if ($attributeType !== 'string' && $model instanceof BaseActiveRecord) {
-                try {
-                    $isRelation = !!$model->getRelation($attributes, false);
-                } catch (\Exception $e) {
-                }
+                $isRelation = !!$this->safeGetRelation($model, $attributes);
             }
 
             $property = null;
             if (is_callable($attributes)) {
-
                 $property = $this->extractMethod($className, $key);
 
             } elseif (is_array($attributes) || (is_string($attributes) && $isRelation)) {
                 // Relation
-                $relation = $model->getRelation($key);
-                $property = $this->extractModel($relation->modelClass, is_array($attributes) ? $attributes : null);
+                if (property_exists($model, $key)) {
+                    $attributeType = $this->findAttributeType($className, $key);
+                    $property = $this->extractModel($attributeType, is_array($attributes) ? $attributes : null);
+                } else {
+                    $relation = $this->safeGetRelation($model, $key);
+                    if ($relation) {
+                        $property = $this->extractModel($relation->modelClass, is_array($attributes) ? $attributes : null);
 
-                // Check hasMany relation
-                if ($relation->multiple) {
-                    $property = [
-                        'type' => 'array',
-                        'items' => $property,
-                    ];
+                        // Check hasMany relation
+                        if ($relation->multiple) {
+                            $property = [
+                                'type' => 'array',
+                                'items' => $property,
+                            ];
+                        }
+                    } else {
+                        var_dump(get_class($model), $key, $model->getRelation($key));exit();
+                    }
                 }
             } elseif (is_string($attributes)) {
                 // Single attribute or attributes map
@@ -506,7 +511,11 @@ class SwaggerTypeExtractor extends BaseObject
                 return $singleType;
             }
 
-            return $this->resolveClassName($type, $inClassName);
+            $subClassName = $this->resolveClassName($type, $inClassName);
+            if (is_subclass_of($subClassName, ActiveQueryInterface::class)) {
+                return (new $className())->getRelation($attribute)->modelClass;
+            }
+            return $subClassName;
         }
         return null;
     }
@@ -582,5 +591,26 @@ class SwaggerTypeExtractor extends BaseObject
 
         $className = '\\' . ltrim($className, '\\');
         return $className . ($isArray ? '[]' : '');
+    }
+
+    protected function safeGetRelation($model, $name)
+    {
+        if (!is_string($name)) {
+            return null;
+        }
+
+        try {
+            $methodInfo = new \ReflectionMethod($model, 'get' . ucfirst($name));
+        } catch (\ReflectionException $e) {
+            return null;
+        }
+
+        foreach ($methodInfo->getParameters() as $parameter) {
+            if (!$parameter->isOptional()) {
+                return null;
+            }
+        }
+
+        return $model->getRelation($name, false);
     }
 }

@@ -1,6 +1,6 @@
 <?php
 
-namespace steroids\docs\events;
+namespace steroids\swagger\events;
 
 use yii\base\Event;
 

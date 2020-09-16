@@ -1,6 +1,6 @@
 <?php
 
-namespace steroids\docs\extractors;
+namespace steroids\swagger\extractors;
 
 use steroids\core\base\BaseSchema;
 use steroids\core\base\Model;

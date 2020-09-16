@@ -1,6 +1,6 @@
 <?php
 
-namespace steroids\docs\helpers;
+namespace steroids\swagger\helpers;
 
 use Doctrine\Common\Annotations\TokenParser;
 use yii\base\Model;
@@ -53,6 +53,8 @@ abstract class ExtractorHelper
         $controllerNamespace = $controllerInfo->getNamespaceName();
         $tokenParser = new TokenParser(file_get_contents($controllerInfo->getFileName()));
         $useStatements = $tokenParser->parseUseStatements($controllerNamespace);
+        $tokenParser = new TokenParser(file_get_contents($controllerInfo->getParentClass()->getFileName()));
+        $useStatements = array_merge($tokenParser->parseUseStatements($controllerNamespace), $useStatements);
 
         $className = ArrayHelper::getValue($useStatements, strtolower($shortName), $shortName);
         $className = '\\' . ltrim($className, '\\');

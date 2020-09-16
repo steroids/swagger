@@ -1,8 +1,9 @@
 <?php
 
-namespace steroids\docs\extractors;
+namespace steroids\swagger\extractors;
 
-use steroids\docs\helpers\ExtractorHelper;
+use steroids\core\components\SiteMapItem;
+use steroids\swagger\helpers\ExtractorHelper;
 use yii\helpers\ArrayHelper;
 use yii\helpers\Inflector;
 use yii\web\Controller;
@@ -12,6 +13,7 @@ use yii\web\Controller;
  * @property-read string|null $actionId
  * @property-read string|null $controllerId
  * @property-read string|null $moduleId
+ * @property-read string|null $siteMapPath
  */
 class ControllerDocExtractor extends BaseDocExtractor
 {
@@ -29,6 +31,11 @@ class ControllerDocExtractor extends BaseDocExtractor
      * @var string
      */
     public $url;
+
+    /**
+     * @var SiteMapItem
+     */
+    public $item;
 
     /**
      * @throws \ReflectionException
@@ -51,9 +58,10 @@ class ControllerDocExtractor extends BaseDocExtractor
         $url = preg_replace('/^\/?api\/[^\\/]+\//', '', $url);
         $url = preg_replace('/<([^>:]+)(:[^>]+)?>/', '{$1}', $url);
         $this->swaggerJson->addPath($url, $httpMethod, [
-            'summary' => $this->title ?: $url,
+            'summary' => $url,
+            'description' => $this->title,
             'tags' => [
-                $this->moduleId,
+                $this->siteMapPath ?: $this->moduleId,
             ],
             'consumes' => [
                 'application/json'
@@ -83,7 +91,8 @@ class ControllerDocExtractor extends BaseDocExtractor
                     if ($line && $line !== '/' && substr($line, 0, 1) !== '@') {
                         $this->title = $line;
                         $this->swaggerJson->updatePath($url, $httpMethod, [
-                            'summary' => '/' . $url . ' ' . $this->title,
+                            'summary' => '/' . $url,
+                            'description' => $this->title,
                         ]);
                         break;
                     }
@@ -117,6 +126,25 @@ class ControllerDocExtractor extends BaseDocExtractor
     {
         $parts = explode('/', $this->route);
         return ArrayHelper::getValue($parts, count($parts) - 3);
+    }
+
+    public function getSiteMapPath()
+    {
+        $ids = $this->item->getPathIds();
+        if (count($ids) === 0) {
+            return null;
+        }
+
+        if ($ids[0] === 'api') {
+            array_shift($ids);
+        }
+
+        // Remove action name
+        if (count($ids) > 1) {
+            array_pop($ids);
+        }
+
+        return implode('.', $ids);
     }
 
     /**

@@ -1,6 +1,6 @@
 <?php
 
-namespace steroids\docs\helpers;
+namespace steroids\swagger\helpers;
 
 
 class TypeConverter

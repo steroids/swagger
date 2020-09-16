@@ -1,8 +1,8 @@
 <?php
 
-namespace steroids\docs\models;
+namespace steroids\swagger\models;
 
-use steroids\docs\events\SwaggerExportEvent;
+use steroids\swagger\events\SwaggerExportEvent;
 use yii\base\Component;
 use yii\base\InvalidConfigException;
 use yii\helpers\ArrayHelper;

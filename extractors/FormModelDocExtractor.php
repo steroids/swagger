@@ -1,12 +1,12 @@
 <?php
 
-namespace steroids\docs\extractors;
+namespace steroids\swagger\extractors;
 
 use steroids\core\base\BaseSchema;
 use steroids\core\base\FormModel;
 use steroids\core\base\Model;
 use steroids\core\base\Type;
-use steroids\docs\helpers\ExtractorHelper;
+use steroids\swagger\helpers\ExtractorHelper;
 use yii\helpers\ArrayHelper;
 
 /**

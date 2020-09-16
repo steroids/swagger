@@ -1,6 +1,6 @@
 <?php
 
-namespace steroids\docs\extractors;
+namespace steroids\swagger\extractors;
 
 use steroids\core\components\SiteMapItem;
 
@@ -30,6 +30,7 @@ class SiteMapDocExtractor extends BaseDocExtractor
                 (new ControllerDocExtractor([
                     'swaggerJson' => $this->swaggerJson,
                     'route' => $url[0],
+                    'item' => $item,
                     'url' => $item->urlRule,
                     'title' => $item->label,
                 ]))->run();

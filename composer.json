@@ -9,6 +9,6 @@
         "yiisoft/yii2": "^2.0"
     },
     "autoload": {
-        "psr-4": {"steroids\\docs\\": ""}
+        "psr-4": {"steroids\\swagger\\": ""}
     }
 }

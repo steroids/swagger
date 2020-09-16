@@ -1,13 +1,13 @@
 <?php
 
-namespace steroids\docs\extractors;
+namespace steroids\swagger\extractors;
 
 use steroids\core\base\BaseSchema;
 use steroids\core\base\FormModel;
 use steroids\core\base\Model;
 use steroids\core\base\SearchModel;
-use steroids\docs\helpers\ExtractorHelper;
-use steroids\docs\models\SwaggerJson;
+use steroids\swagger\helpers\ExtractorHelper;
+use steroids\swagger\models\SwaggerJson;
 use yii\base\BaseObject;
 
 abstract class BaseDocExtractor extends BaseObject
