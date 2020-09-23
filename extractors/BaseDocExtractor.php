@@ -9,6 +9,7 @@ use steroids\core\base\SearchModel;
 use steroids\swagger\helpers\ExtractorHelper;
 use steroids\swagger\models\SwaggerJson;
 use yii\base\BaseObject;
+use yii\helpers\ArrayHelper;
 
 abstract class BaseDocExtractor extends BaseObject
 {
@@ -21,6 +22,11 @@ abstract class BaseDocExtractor extends BaseObject
      * @var string[]
      */
     public $listenRelations = [];
+
+    /**
+     * @var array
+     */
+    public $params = [];
 
     public function createTypeExtractor($type, $url, $method)
     {
@@ -44,6 +50,21 @@ abstract class BaseDocExtractor extends BaseObject
                 ]);
             }
         }
+    }
+
+    protected function applyParamsToRequestSchema($requestSchema)
+    {
+        if (count($this->params) > 0) {
+            if (empty($requestSchema)) {
+                $requestSchema = [
+                    'type' => 'object',
+                    'properties' => [],
+                ];
+            }
+
+            $requestSchema['properties'] = ArrayHelper::merge($this->params, $requestSchema['properties']);
+        }
+        return $requestSchema;
     }
 
     abstract function run();

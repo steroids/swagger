@@ -101,7 +101,7 @@ class SwaggerTypeExtractor extends BaseObject
         }
 
         // Get single type
-        $singleType = $this->parseSingleType($type);
+        $singleType = static::parseSingleType($type);
 
         // Check is single type
         if ($singleType) {
@@ -324,7 +324,7 @@ class SwaggerTypeExtractor extends BaseObject
 
             } elseif (is_array($attributes) || (is_string($attributes) && $isRelation)) {
                 // Relation
-                if (property_exists($model, $key)) {
+                if ($model && property_exists($model, $key)) {
                     $attributeType = $this->findAttributeType($className, $key);
                     $property = $this->extractModel($attributeType, is_array($attributes) ? $attributes : null);
                 } else {
@@ -354,14 +354,14 @@ class SwaggerTypeExtractor extends BaseObject
                     }
 
                     /** @var \steroids\core\base\Model $model */
-                    $model = new $modelClass();
+                    $model = $this->safeCreateInstance($modelClass);
                 }
 
                 $property = $this->extractAttribute($modelClass, $attribute);
 
                 // Steroids meta model
                 if (method_exists($modelClass, 'meta')) {
-                    if (empty($property['description'])) {
+                    if (empty($property['description']) && $model) {
                         $property['description'] = $model->getAttributeLabel($attribute);
                     }
                     if (empty($property['example'])) {
@@ -369,8 +369,10 @@ class SwaggerTypeExtractor extends BaseObject
                     }
 
                     /** @var Type $appType */
-                    $appType = \Yii::$app->types->getTypeByModel($model, $attribute);
-                    $appType->prepareSwaggerProperty($modelClass, $attribute, $property);
+                    if ($model) {
+                        $appType = \Yii::$app->types->getTypeByModel($model, $attribute);
+                        $appType->prepareSwaggerProperty($modelClass, $attribute, $property);
+                    }
                 }
             }
 
@@ -504,7 +506,7 @@ class SwaggerTypeExtractor extends BaseObject
         $type = trim($type);
 
         if ($type) {
-            $singleType = $this->parseSingleType($type);
+            $singleType = static::parseSingleType($type);
             if ($singleType) {
                 return $singleType;
             }
@@ -549,7 +551,7 @@ class SwaggerTypeExtractor extends BaseObject
         ];
     }
 
-    protected function parseSingleType($type)
+    public static function parseSingleType($type)
     {
         $isArray = preg_match('/\[\]$/', $type);
         $type = preg_replace('/\[\]$/', '', $type);
@@ -610,5 +612,20 @@ class SwaggerTypeExtractor extends BaseObject
         }
 
         return $model->getRelation($name, false);
+    }
+
+    protected function safeCreateInstance($modelClass)
+    {
+        $modelClassInfo = new \ReflectionClass($modelClass);
+        if ($modelClassInfo->isAbstract()) {
+            return null;
+        }
+
+        $model = null;
+        try {
+            $model = new $modelClass();
+        } catch (\Exception $e) {
+        }
+        return $model;
     }
 }

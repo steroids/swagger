@@ -23,6 +23,7 @@ class SearchModelDocExtractor extends FormModelDocExtractor
 
         $required = [];
         $requestSchema = SwaggerTypeExtractor::getInstance()->extractModelByMeta($this->className);
+        $requestSchema = $this->applyParamsToRequestSchema($requestSchema);
 
         $responseSchema = is_subclass_of($modelObject, BaseSchema::class)
             ? SwaggerTypeExtractor::getInstance()->extractSchema($modelClassName, $modelObject->fields())

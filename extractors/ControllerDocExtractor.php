@@ -77,8 +77,27 @@ class ControllerDocExtractor extends BaseDocExtractor
             $type = ExtractorHelper::resolveType($match[1], get_class($controller));
             $extractor = $this->createTypeExtractor($type, $url, $httpMethod);
             if ($extractor) {
-                if (preg_match_all('/@request-listen-relation\s+([^\s]+)/i', $method->getDocComment(), $match)) {
+                $phpDoc = $method->getDocComment();
+                if (preg_match_all('/@request-listen-relation\s+([^\s]+)/i', $phpDoc, $match)) {
                     $extractor->listenRelations = $match[1];
+                }
+
+                $extractor->params = [];
+                if (preg_match_all('/@param(-post)? +([^\s\n]+) +([^\s\n]+)( [^\n]+)?/i', $phpDoc, $match, PREG_SET_ORDER)) {
+                    foreach ($match as $matchItem) {
+                        if (strpos($matchItem[2], '$') === 0) {
+                            $extractor->params[substr($matchItem[2], 1)] = [
+                                'type' => 'string',
+                                'description' => trim(trim($matchItem[3], '*')),
+                            ];
+                        }
+                        if (strpos($matchItem[3], '$') === 0) {
+                            $extractor->params[substr($matchItem[3], 1)] = [
+                                'type' => SwaggerTypeExtractor::parseSingleType($matchItem[2]),
+                                'description' => isset($matchItem[4]) ? trim(trim($matchItem[4], '*')) : '',
+                            ];
+                        }
+                    }
                 }
                 $extractor->run();
             }
