@@ -25,15 +25,20 @@ class SearchModelDocExtractor extends FormModelDocExtractor
         $requestSchema = SwaggerTypeExtractor::getInstance()->extractModelByMeta($this->className);
         $requestSchema = $this->applyParamsToRequestSchema($requestSchema);
 
+        $metaSchema = SwaggerTypeExtractor::getInstance()->extractModel($this->className, ['meta']);
+
         $responseSchema = is_subclass_of($modelObject, BaseSchema::class)
             ? SwaggerTypeExtractor::getInstance()->extractSchema($modelClassName, $modelObject->fields())
             : SwaggerTypeExtractor::getInstance()->extractModel($modelClassName, $searchModel->fields());
 
         $responseProperties = [
-            'meta' => [
-                'description' => 'Additional meta information',
-                'type' => 'object',
-            ],
+            'meta' => array_merge(
+                [
+                    'description' => 'Additional meta information',
+                    'type' => 'object',
+                ],
+                isset($metaSchema['properties']['meta']) ? $metaSchema['properties']['meta'] : []
+            ),
             'total' => [
                 'description' => 'Total items count',
                 'type' => 'number',
