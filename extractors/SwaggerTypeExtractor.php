@@ -4,6 +4,7 @@ namespace steroids\swagger\extractors;
 
 use Doctrine\Common\Annotations\TokenParser;
 use steroids\core\base\BaseSchema;
+use steroids\core\base\FormModel;
 use steroids\core\base\Type;
 use yii\base\BaseObject;
 use yii\base\Model;
@@ -287,6 +288,13 @@ class SwaggerTypeExtractor extends BaseObject
             $fields = $model->fields();
         }
 
+        if ($model instanceof FormModel) {
+            $schema = $model->fieldsSchema();
+            if ($schema) {
+                return $this->extractSchema($schema, !empty($fields) ? $fields : null);
+            }
+        }
+
         // Detect * => model.*
         foreach ($fields as $key => $name) {
             // Syntax: * => model.*
@@ -477,7 +485,7 @@ class SwaggerTypeExtractor extends BaseObject
         $inClassName = $className;
 
         // Find is class php doc
-        if (preg_match('/@property(-read)? +([^ |\n]+) \$' . preg_quote($attribute) . ' .*/u', $classInfo->getDocComment(), $matchClass)) {
+        if (preg_match('/@property(-read)? +([^ |\n]+) \$' . preg_quote($attribute) . '.*/u', $classInfo->getDocComment(), $matchClass)) {
             $type = $matchClass[2];
             $phpdoc = $matchClass[0];
         }
