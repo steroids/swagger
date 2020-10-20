@@ -5,6 +5,8 @@ namespace steroids\swagger\extractors;
 use steroids\core\base\BaseSchema;
 use steroids\core\base\Model;
 use steroids\core\base\SearchModel;
+use yii\helpers\ArrayHelper;
+use yii\helpers\StringHelper;
 
 /**
  * @property-read string $definitionName
@@ -25,11 +27,10 @@ class SearchModelDocExtractor extends FormModelDocExtractor
         $requestSchema = SwaggerTypeExtractor::getInstance()->extractModelByMeta($this->className);
         $requestSchema = $this->applyParamsToRequestSchema($requestSchema);
 
-        $metaSchema = SwaggerTypeExtractor::getInstance()->extractModel($this->className, ['meta']);
+        $metaSchema = SwaggerTypeExtractor::getInstance()->extract($this->className, ['meta']);
 
-        $responseSchema = is_subclass_of($modelObject, BaseSchema::class)
-            ? SwaggerTypeExtractor::getInstance()->extractSchema($modelClassName, $modelObject->fields())
-            : SwaggerTypeExtractor::getInstance()->extractModel($modelClassName, $searchModel->fields());
+        $refName = StringHelper::basename($this->className) . 'Item';
+        $responseSchema = SwaggerTypeExtractor::getInstance()->extract($modelClassName, $modelObject->fields(), $refName);
 
         $responseProperties = [
             'meta' => array_merge(

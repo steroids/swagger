@@ -81,6 +81,28 @@ class SwaggerTypeExtractor extends BaseObject
         return $newJSON;
     }
 
+    public function extract($className, $fields = null, $refName = null)
+    {
+        if ($refName && isset($this->refs[$refName])) {
+            return ['$ref' => '#/definitions/' . $refName];
+        }
+
+        if (is_subclass_of($className, BaseSchema::class)) {
+            $schema = $this->extractSchema($className, $fields);
+        } elseif (is_subclass_of($className, Model::class)) {
+            $schema = $this->extractModel($className, $fields);
+        } else {
+            $schema = $this->extractObject($className, $fields);
+        }
+
+        if ($refName && !isset($schema['$ref']) && !isset($this->refs[$refName])) {
+            $this->refs[$refName] = $schema;
+            return ['$ref' => '#/definitions/' . $refName];
+        }
+
+        return $schema;
+    }
+
     /**
      * @param string $type
      * @param string $inClassName
@@ -112,7 +134,7 @@ class SwaggerTypeExtractor extends BaseObject
         } else {
             // Object
             $className = $this->resolveClassName($type, $inClassName);
-            $schema = $this->extractObject($className);
+            $schema = $this->extract($className);
         }
 
         if ($phpdoc) {
@@ -166,16 +188,6 @@ class SwaggerTypeExtractor extends BaseObject
      */
     public function extractObject($className, $fields = null)
     {
-        // Detect schema
-        if (is_subclass_of($className, BaseSchema::class)) {
-            return $this->extractSchema($className, $fields);
-        }
-
-        // Detect model
-        if (is_subclass_of($className, Model::class)) {
-            return $this->extractModel($className, $fields);
-        }
-
         // Single object
         $properties = [];
         $info = new \ReflectionClass($className);
@@ -617,6 +629,10 @@ class SwaggerTypeExtractor extends BaseObject
             if (!$parameter->isOptional()) {
                 return null;
             }
+        }
+
+        if (!method_exists($model, 'getRelation')) {
+            return null;
         }
 
         return $model->getRelation($name, false);

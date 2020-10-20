@@ -2,6 +2,7 @@
 
 namespace steroids\swagger\controllers;
 
+use steroids\swagger\helpers\TypeScriptHelper;
 use yii\helpers\Html;
 use yii\helpers\Url;
 use yii\web\Controller;
@@ -27,6 +28,11 @@ class SwaggerController extends Controller
                         'visible' => false,
                         'url' => ['json'],
                         'urlRule' => $baseUrl . '/swagger.json',
+                    ],
+                    'types' => [
+                        'visible' => false,
+                        'url' => ['types'],
+                        'urlRule' => $baseUrl . '/types',
                     ],
                 ],
             ],
@@ -54,6 +60,22 @@ class SwaggerController extends Controller
      */
     public function actionJson()
     {
+        \Yii::$app->response->format = Response::FORMAT_JSON;
+
+        return $this->generateJson();
+    }
+
+    /**
+     * @return string
+     * @throws \Exception
+     */
+    public function actionTypes()
+    {
+        return '<pre>' . TypeScriptHelper::jsonToTypes($this->generateJson());
+    }
+
+    protected function generateJson()
+    {
         $swaggerJson = new SwaggerJson(
             [
                 'siteName' => \Yii::$app->name,
@@ -73,9 +95,8 @@ class SwaggerController extends Controller
         ]);
         $extractor->run();
 
-        \Yii::$app->response->format = Response::FORMAT_JSON;
-
         return $swaggerJson->toArray();
     }
+
 }
 
