@@ -8,54 +8,6 @@ use yii\helpers\StringHelper;
 
 abstract class TypeScriptHelper
 {
-    /*
-     *     "UserMeSchema": {
-  "type": "object",
-  "properties": {
-    "id": {
-      "type": "string",
-      "description": "ИД",
-      "example": null
-    },
-    "name": {
-      "type": "string",
-      "description": "Name",
-      "example": null
-    },
-    "phone": {
-      "type": "string",
-      "description": "Телефон",
-      "example": null
-    },
-    "gender": {
-      "type": "string",
-      "enum": [
-        "male",
-        "female"
-      ],
-      "description": "Пол",
-      "example": null
-    },
-    "countryCode": {
-      "type": "string",
-      "description": "Код страны",
-      "example": null
-    },
-    "level": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "ID",
-          "example": null
-        },
-        "position": {
-          "type": "string",
-          "description": "Номер уровня",
-          "example": null
-        },
-     */
-
     /**
      * @param array $json
      * @return string
@@ -143,5 +95,4 @@ abstract class TypeScriptHelper
     {
         return str_repeat('    ', $level);
     }
-
 }
