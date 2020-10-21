@@ -8,6 +8,7 @@ use steroids\core\base\Model;
 use steroids\core\base\Type;
 use steroids\swagger\helpers\ExtractorHelper;
 use yii\helpers\ArrayHelper;
+use yii\helpers\StringHelper;
 
 /**
  * @property-read string $definitionName
@@ -40,7 +41,8 @@ class FormModelDocExtractor extends BaseDocExtractor
         $requestSchema = SwaggerTypeExtractor::getInstance()->extractModelRequest($this->className, $fields);
         $requestSchema = $this->applyParamsToRequestSchema($requestSchema);
 
-        $responseSchema = SwaggerTypeExtractor::getInstance()->extract($this->className, $model->fields());
+        $refName = StringHelper::basename($this->className);
+        $responseSchema = SwaggerTypeExtractor::getInstance()->extract($this->className, $model->fields(), $refName);
 
         $this->swaggerJson->updatePath($this->url, $this->method, [
             'parameters' => empty($requestSchema) ? null : [
