@@ -55,10 +55,12 @@ class SearchModelDocExtractor extends FormModelDocExtractor
             'page' => [
                 'description' => 'Page',
                 'type' => 'number',
+                'example' => 2,
             ],
             'pageSize' => [
                 'description' => 'Page size',
                 'type' => 'number',
+                'example' => 50,
             ],
         ]);
 
