@@ -5,7 +5,7 @@ namespace steroids\swagger\extractors;
 use steroids\core\base\BaseSchema;
 use steroids\core\base\Model;
 use steroids\core\base\SearchModel;
-use yii\helpers\ArrayHelper;
+use ReflectionClass;
 use yii\helpers\StringHelper;
 
 /**
@@ -55,10 +55,12 @@ class SearchModelDocExtractor extends FormModelDocExtractor
             'page' => [
                 'description' => 'Page',
                 'type' => 'number',
+                'example' => 2,
             ],
             'pageSize' => [
                 'description' => 'Page size',
                 'type' => 'number',
+                'example' => 50,
             ],
         ]);
 
@@ -112,7 +114,7 @@ class SearchModelDocExtractor extends FormModelDocExtractor
      */
     public function getDefinitionName()
     {
-        return (new \ReflectionClass($this->className))->getShortName();
+        return (new ReflectionClass($this->className))->getShortName();
     }
 }
 
