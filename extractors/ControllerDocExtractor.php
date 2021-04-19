@@ -4,6 +4,7 @@ namespace steroids\swagger\extractors;
 
 use steroids\core\components\SiteMapItem;
 use steroids\swagger\helpers\ExtractorHelper;
+use yii\base\Exception;
 use yii\helpers\ArrayHelper;
 use yii\helpers\Inflector;
 use yii\web\Controller;
@@ -99,7 +100,13 @@ class ControllerDocExtractor extends BaseDocExtractor
                         }
                     }
                 }
-                $extractor->run();
+
+                try {
+                    $extractor->run();
+                } catch (\Exception $e) {
+                    throw $e;
+                    throw new Exception('Error on parse "' . $url . '" controller phpdoc: ' . $method->getDocComment() . '. ' . $e->getMessage(), 0, $e);
+                }
             }
 
             // Find first comment line as title

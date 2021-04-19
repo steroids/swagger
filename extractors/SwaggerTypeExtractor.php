@@ -7,6 +7,7 @@ use steroids\core\base\BaseSchema;
 use steroids\core\base\FormModel;
 use steroids\core\base\Type;
 use yii\base\BaseObject;
+use yii\base\Exception;
 use yii\base\Model;
 use yii\db\ActiveQueryInterface;
 use yii\db\ActiveRecord;
@@ -294,6 +295,9 @@ class SwaggerTypeExtractor extends BaseObject
     public function extractModel($className, $fields = null)
     {
         /** @var Model|ActiveRecord $model */
+        if (!is_string($className) || !class_exists($className)) {
+            throw new \Exception('Invalid class name: ' . $className);
+        }
         $model = new $className();
 
         if ($fields === null) {
@@ -346,6 +350,9 @@ class SwaggerTypeExtractor extends BaseObject
                 // Relation
                 if ($model && property_exists($model, $key)) {
                     $attributeType = $this->findAttributeType($className, $key);
+                    if (!$attributeType) {
+                        throw new Exception('Not found class name, ' . $className . ', ' . $key);
+                    }
                     $property = $this->extractModel($attributeType, is_array($attributes) ? $attributes : null);
                 } else {
                     $relation = $this->safeGetRelation($model, $key);

@@ -25,12 +25,10 @@ class SwaggerController extends Controller
                 'urlRule' => $baseUrl,
                 'items' => [
                     'json' => [
-                        'visible' => false,
                         'url' => ['json'],
                         'urlRule' => $baseUrl . '/swagger.json',
                     ],
                     'types' => [
-                        'visible' => false,
                         'url' => ['types'],
                         'urlRule' => $baseUrl . '/types',
                     ],
@@ -60,7 +58,7 @@ class SwaggerController extends Controller
      */
     public function actionJson()
     {
-        \Yii::$app->response->format = Response::FORMAT_JSON;
+        //\Yii::$app->response->format = Response::FORMAT_JSON;
 
         return $this->generateJson();
     }
@@ -85,12 +83,8 @@ class SwaggerController extends Controller
         );
 
         $siteItems = ArrayHelper::getValue(\Yii::$app->siteMap->getItem('api'), 'items', []);
-        $visibleSiteMapItems = array_filter($siteItems, function (SiteMapItem $item) {
-            return $item->getVisible(false);
-        });
-
         $extractor = new SiteMapDocExtractor([
-            'items' => $visibleSiteMapItems,
+            'items' => $siteItems,
             'swaggerJson' => $swaggerJson,
         ]);
         $extractor->run();
