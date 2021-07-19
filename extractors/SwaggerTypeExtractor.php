@@ -294,6 +294,10 @@ class SwaggerTypeExtractor extends BaseObject
      */
     public function extractModel($className, $fields = null)
     {
+        if (is_string($className)) {
+            $className = preg_replace('/\[\]$/', '', $className);
+        }
+
         /** @var Model|ActiveRecord $model */
         if (!is_string($className) || !class_exists($className)) {
             throw new \Exception('Invalid class name: ' . $className);
