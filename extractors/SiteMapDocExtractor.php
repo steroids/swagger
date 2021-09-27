@@ -41,9 +41,9 @@ class SiteMapDocExtractor extends BaseDocExtractor
         }
 
         // Add refs
-        foreach (SwaggerTypeExtractor::getInstance()->refs as $name => $ref) {
-            $this->swaggerJson->addDefinition($name, $ref);
-        }
+//        foreach (SwaggerTypeExtractor::getInstance()->refs as $name => $ref) {
+//            $this->swaggerJson->addDefinition($name, $ref);
+//        }
     }
 
     /**

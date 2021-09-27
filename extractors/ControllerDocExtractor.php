@@ -3,8 +3,7 @@
 namespace steroids\swagger\extractors;
 
 use steroids\core\components\SiteMapItem;
-use steroids\swagger\helpers\ExtractorHelper;
-use yii\base\Exception;
+use steroids\swagger\models\SwaggerContext;
 use yii\helpers\ArrayHelper;
 use yii\helpers\Inflector;
 use yii\web\Controller;
@@ -56,8 +55,19 @@ class ControllerDocExtractor extends BaseDocExtractor
             $url = substr($url, strlen($match[1]) + 1);
             $httpMethod = strtolower(explode(',', $match[1])[0]);
         }
-        $url = preg_replace('/^\/?api\/[^\\/]+\//', '', $url);
+        //$url = preg_replace('/^\/?api\/[^\\/]+\//', '', $url);
         $url = preg_replace('/<([^>:]+)(:[^>]+)?>/', '{$1}', $url);
+
+
+        $controllerClass = get_class($controller);
+        $methodName = 'action' . Inflector::id2camel($this->actionId);
+        $context = new SwaggerContext(['className' => $controllerClass]);
+        $inputProperty = ClassMethodExtractor::extract($context->child(['isInput' => true]), $methodName);
+        $outputProperty = ClassMethodExtractor::extract($context->child(['isInput' => false]), $methodName);
+
+//        if ($controllerClass === 'app\auth\controllers\InitController') {
+//            var_dump($outputProperty);
+//        }
         $this->swaggerJson->addPath($url, $httpMethod, [
             'summary' => $url,
             'description' => $this->title,
@@ -67,64 +77,58 @@ class ControllerDocExtractor extends BaseDocExtractor
             'consumes' => [
                 'application/json'
             ],
+            'parameters' => $inputProperty
+                ? [
+                    [
+                        'in' => 'body',
+                        'name' => 'request',
+                        'schema' => $inputProperty->export(),
+                    ]
+                ]
+                : null,
             'responses' => [
                 200 => [
                     'description' => 'Successful operation',
+                    'content' => [
+                        'application/json' => [
+                            'schema' => $outputProperty ? $outputProperty->export() : null,
+                        ],
+                    ],
+                ],
+                400 => [
+                    'description' => 'Validation errors',
+                    'content' => [
+                        'application/json' => [
+                            'schema' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'errors' => [
+                                        'type' => 'object',
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
                 ],
             ],
         ]);
 
-        if (preg_match('/@return ([a-z0-9_]+)/i', $method->getDocComment(), $match)) {
-            $type = ExtractorHelper::resolveType($match[1], get_class($controller));
-            $extractor = $this->createTypeExtractor($type, $url, $httpMethod);
-            if ($extractor) {
-                $phpDoc = $method->getDocComment();
-                if (preg_match_all('/@request-listen-relation\s+([^\s]+)/i', $phpDoc, $match)) {
-                    $extractor->listenRelations = $match[1];
-                }
 
-                $extractor->params = [];
-                if (preg_match_all('/@param(-post)? +([^\s\n]+) +([^\s\n]+)( [^\n]+)?/i', $phpDoc, $match, PREG_SET_ORDER)) {
-                    foreach ($match as $matchItem) {
-                        if (strpos($matchItem[2], '$') === 0) {
-                            $extractor->params[substr($matchItem[2], 1)] = [
-                                'type' => 'string',
-                                'description' => trim(trim($matchItem[3], '*')),
-                            ];
-                        }
-                        if (strpos($matchItem[3], '$') === 0) {
-                            $extractor->params[substr($matchItem[3], 1)] = [
-                                'type' => SwaggerTypeExtractor::parseSingleType($matchItem[2]),
-                                'description' => isset($matchItem[4]) ? trim(trim($matchItem[4], '*')) : '',
-                            ];
-                        }
-                    }
-                }
-
-                try {
-                    $extractor->run();
-                } catch (\Exception $e) {
-                    throw $e;
-                    throw new Exception('Error on parse "' . $url . '" controller phpdoc: ' . $method->getDocComment() . '. ' . $e->getMessage(), 0, $e);
-                }
-            }
-
-            // Find first comment line as title
-            if (!$this->title) {
-                foreach (explode("\n", $method->getDocComment()) as $line) {
-                    $line = preg_replace('/^\s*\\/?\*+/', '', $line);
-                    $line = trim($line);
-                    if ($line && $line !== '/' && substr($line, 0, 1) !== '@') {
-                        $this->title = $line;
-                        $this->swaggerJson->updatePath($url, $httpMethod, [
-                            'summary' => '/' . $url,
-                            'description' => $this->title,
-                        ]);
-                        break;
-                    }
-                }
-            }
-        }
+        // Find first comment line as title
+//            if (!$this->title) {
+//                foreach (explode("\n", $method->getDocComment()) as $line) {
+//                    $line = preg_replace('/^\s*\\/?\*+/', '', $line);
+//                    $line = trim($line);
+//                    if ($line && $line !== '/' && substr($line, 0, 1) !== '@') {
+//                        $this->title = $line;
+//                        $this->swaggerJson->updatePath($url, $httpMethod, [
+//                            'summary' => '/' . $url,
+//                            'description' => $this->title,
+//                        ]);
+//                        break;
+//                    }
+//                }
+//            }
     }
 
     /**

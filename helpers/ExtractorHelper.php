@@ -3,64 +3,14 @@
 namespace steroids\swagger\helpers;
 
 use Doctrine\Common\Annotations\TokenParser;
+use yii\base\Exception;
 use yii\base\Model;
+use yii\db\ActiveQuery;
+use yii\db\ActiveQueryInterface;
 use yii\helpers\ArrayHelper;
 
 abstract class ExtractorHelper
 {
-    /**
-     * @param string $type
-     * @param string $inClassName
-     * @return string
-     * @throws \ReflectionException
-     */
-    public static function resolveType($type, $inClassName)
-    {
-        $isArray = static::isArrayType($type);
-        if ($isArray) {
-            $type = preg_replace('/\[\]$/', '', $type);
-        }
-
-        $result = !static::isPrimitiveType($type)
-            ? static::resolveClassName($type, $inClassName)
-            : static::normalizePrimitiveType($type);
-        if ($isArray) {
-            $result .= '[]';
-        }
-        return $result;
-    }
-
-    public static function getSingleType($type)
-    {
-        return preg_replace('/\[\]$/', '', $type);
-    }
-
-    /**
-     * @param string $shortName
-     * @param string $inClassName
-     * @return string
-     * @throws \ReflectionException
-     */
-    public static function resolveClassName($shortName, $inClassName)
-    {
-        // Check name with namespace
-        if (strpos($shortName, '\\') !== false) {
-            return $shortName;
-        }
-
-        // Fetch use statements
-        $controllerInfo = new \ReflectionClass($inClassName);
-        $controllerNamespace = $controllerInfo->getNamespaceName();
-        $tokenParser = new TokenParser(file_get_contents($controllerInfo->getFileName()));
-        $useStatements = $tokenParser->parseUseStatements($controllerNamespace);
-        $tokenParser = new TokenParser(file_get_contents($controllerInfo->getParentClass()->getFileName()));
-        $useStatements = array_merge($tokenParser->parseUseStatements($controllerNamespace), $useStatements);
-
-        $className = ArrayHelper::getValue($useStatements, strtolower($shortName), $shortName);
-        $className = '\\' . ltrim($className, '\\');
-        return $className;
-    }
-
     public static function normalizePrimitiveType($string)
     {
         $map = [
@@ -91,10 +41,74 @@ abstract class ExtractorHelper
         return in_array(static::normalizePrimitiveType($string), $list);
     }
 
-
-    public static function isArrayType($type)
+    public static function fixJson($json)
     {
-        return preg_match('/\[\]$/', $type);
+        if (!in_array(substr($json, 0, 1), ['[', '{'])) {
+            return $json;
+        }
+
+        $newJSON = '';
+        $jsonLength = strlen($json);
+        for ($i = 0; $i < $jsonLength; $i++) {
+            if ($json[$i] == '"' || $json[$i] == "'") {
+                $nextQuote = strpos($json, $json[$i], $i + 1);
+                $quoteContent = substr($json, $i + 1, $nextQuote - $i - 1);
+                $newJSON .= '"' . str_replace('"', "'", $quoteContent) . '"';
+                $i = $nextQuote;
+            } else {
+                $newJSON .= $json[$i];
+            }
+        }
+        return $newJSON;
     }
 
+    /**
+     * @param $modelClassName
+     * @param $name
+     * @return ActiveQuery
+     */
+    public static function safeGetRelation($modelClassName, $name)
+    {
+        $model = static::safeCreateInstance($modelClassName);
+
+        if (!$model || !is_string($name)) {
+            return null;
+        }
+
+        try {
+            $methodInfo = new \ReflectionMethod($model, 'get' . ucfirst($name));
+        } catch (\ReflectionException $e) {
+            return null;
+        }
+
+        foreach ($methodInfo->getParameters() as $parameter) {
+            if (!$parameter->isOptional()) {
+                return null;
+            }
+        }
+
+        if (!method_exists($model, 'getRelation')) {
+            return null;
+        }
+
+        return $model->getRelation($name, false);
+    }
+
+    protected static function safeCreateInstance($modelClass)
+    {
+        if (!class_exists($modelClass)) {
+            return null;
+        }
+        $modelClassInfo = new \ReflectionClass($modelClass);
+        if ($modelClassInfo->isAbstract()) {
+            return null;
+        }
+
+        $model = null;
+        try {
+            $model = new $modelClass();
+        } catch (\Exception $e) {
+        }
+        return $model;
+    }
 }

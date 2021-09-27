@@ -6,6 +6,7 @@ use steroids\core\base\BaseSchema;
 use steroids\core\base\Model;
 use steroids\core\base\SearchModel;
 use ReflectionClass;
+use steroids\swagger\models\SwaggerProperty;
 use yii\helpers\StringHelper;
 
 /**
@@ -24,10 +25,11 @@ class SearchModelDocExtractor extends FormModelDocExtractor
         $modelObject = new $modelClassName();
 
         $required = [];
-        $requestSchema = SwaggerTypeExtractor::getInstance()->extractModelByMeta($this->className);
+        $requestSchema = MetaModelExtractor::extract($this->className)->export();
+        //$requestSchema = SwaggerTypeExtractor::getInstance()->extractModelByMeta($this->className);
         $requestSchema = $this->applyParamsToRequestSchema($requestSchema);
 
-        $metaProperty = SwaggerTypeExtractor::getInstance()->extractAttribute($this->className, 'meta');
+        $metaProperty = SwaggerProperty::createFromAttribute($context, $this->className, 'meta')->export();
 
         $refName = StringHelper::basename($this->className) . 'Item';
         $responseSchema = SwaggerTypeExtractor::getInstance()->extract($modelClassName, $modelObject->fields(), $refName);
