@@ -46,31 +46,24 @@ class SchemaExtractor
             ]);
 
             $property = null;
-            $attributes = explode('.', $value);
-            if (count($attributes) > 1) {
-                $childContext = ModelExtractor::prepareContextByPath($childContext, $attributes);
-                $items[] = ClassAttributeExtractor::extract($childContext, $childContext->attribute);
-//
-//
-//                $attribute = array_pop($attributes);
-//                foreach ($attributes as $item) {
-//                    $nextModelClass = ClassAttributeExtractor::extract($childContext, $item);
-//                    if (is_subclass_of($nextModelClass, ActiveQueryInterface::class)) {
-//                        $childContext->className = (new $childContext->className())->getRelation($item)->modelClass;
-//                    } else {
-//                        $childContext->className = $nextModelClass;
-//                    }
-//                }
-//
-//                $property = ArrayHelper::getValue(ModelExtractor::extract($childContext, [$attribute]), 'items.0');
-            } else {
-                $attribute = $value;
-                if ($schema->canGetProperty($attribute, true, false)) {
-                    $items[] = ClassAttributeExtractor::extract($childContext, $attribute);
+            if (is_array($value)) {
+                // Relation
+                list($subContext) = ClassAttributeExtractor::prepare($context, 'model');
+                $items[] = ClassAttributeExtractor::extract($subContext, $key);
+            } elseif (is_string($value)) {
+                $attributes = explode('.', $value);
+                if (count($attributes) > 1) {
+                    $childContext = ModelExtractor::prepareContextByPath($childContext, $attributes);
+                    $items[] = ClassAttributeExtractor::extract($childContext, $childContext->attribute);
                 } else {
-                    $rootProperty = ClassAttributeExtractor::extract($childContext, 'model');
-                    if ($rootProperty->items && count($rootProperty->items) === 1) {
-                        $items[] = $rootProperty->items[0];
+                    $attribute = $value;
+                    if ($schema->canGetProperty($attribute, true, false)) {
+                        $items[] = ClassAttributeExtractor::extract($childContext, $attribute);
+                    } else {
+                        $rootProperty = ClassAttributeExtractor::extract($childContext, 'model');
+                        if ($rootProperty->items && count($rootProperty->items) === 1) {
+                            $items[] = $rootProperty->items[0];
+                        }
                     }
                 }
             }
