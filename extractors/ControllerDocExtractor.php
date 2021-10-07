@@ -2,8 +2,11 @@
 
 namespace steroids\swagger\extractors;
 
+use steroids\core\base\BaseSchema;
+use steroids\core\base\CrudApiController;
 use steroids\core\components\SiteMapItem;
 use steroids\swagger\models\SwaggerContext;
+use steroids\swagger\models\SwaggerRefsStorage;
 use yii\helpers\ArrayHelper;
 use yii\helpers\Inflector;
 use yii\web\Controller;
@@ -37,6 +40,8 @@ class ControllerDocExtractor extends BaseDocExtractor
      */
     public $item;
 
+    public SwaggerRefsStorage $refsStorage;
+
     /**
      * @throws \ReflectionException
      * @throws \yii\base\InvalidConfigException
@@ -55,19 +60,14 @@ class ControllerDocExtractor extends BaseDocExtractor
             $url = substr($url, strlen($match[1]) + 1);
             $httpMethod = strtolower(explode(',', $match[1])[0]);
         }
-        //$url = preg_replace('/^\/?api\/[^\\/]+\//', '', $url);
         $url = preg_replace('/<([^>:]+)(:[^>]+)?>/', '{$1}', $url);
-
-
         $controllerClass = get_class($controller);
         $methodName = 'action' . Inflector::id2camel($this->actionId);
-        $context = new SwaggerContext(['className' => $controllerClass]);
-        $inputProperty = ClassMethodExtractor::extract($context->child(['isInput' => true]), $methodName);
+
+        $context = new SwaggerContext(['className' => $controllerClass, 'refsStorage' => $this->refsStorage]);
+        $inputProperty = ClassMethodExtractor::extract($context->child(['isInput' => true, 'isInputForGetMethod' => $httpMethod === 'get']), $methodName);
         $outputProperty = ClassMethodExtractor::extract($context->child(['isInput' => false]), $methodName);
 
-//        if ($controllerClass === 'app\auth\controllers\InitController') {
-//            var_dump($outputProperty);
-//        }
         $this->swaggerJson->addPath($url, $httpMethod, [
             'summary' => $url,
             'description' => $this->title,
@@ -77,7 +77,7 @@ class ControllerDocExtractor extends BaseDocExtractor
             'consumes' => [
                 'application/json'
             ],
-            'parameters' => $inputProperty
+            'parameters' => $inputProperty && !$inputProperty->isEmpty()
                 ? [
                     [
                         'in' => 'body',
@@ -91,7 +91,7 @@ class ControllerDocExtractor extends BaseDocExtractor
                     'description' => 'Successful operation',
                     'content' => [
                         'application/json' => [
-                            'schema' => $outputProperty ? $outputProperty->export() : null,
+                            'schema' => $outputProperty && !$outputProperty->isEmpty() ? $outputProperty->export() : null,
                         ],
                     ],
                 ],
@@ -99,14 +99,16 @@ class ControllerDocExtractor extends BaseDocExtractor
                     'description' => 'Validation errors',
                     'content' => [
                         'application/json' => [
-                            'schema' => [
-                                'type' => 'object',
-                                'properties' => [
-                                    'errors' => [
-                                        'type' => 'object',
+                            'schema' => $httpMethod !== 'delete'
+                                ? [
+                                    'type' => 'object',
+                                    'properties' => [
+                                        'errors' => [
+                                            'type' => 'object',
+                                        ],
                                     ],
-                                ],
-                            ],
+                                ]
+                                : null,
                         ],
                     ],
                 ],

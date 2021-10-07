@@ -14,6 +14,10 @@ class ObjectExtractor
      */
     public static function extract(SwaggerContext $context)
     {
+        if ($context->isInput) {
+            return new SwaggerProperty();
+        }
+
         return new SwaggerProperty([
             'items' => array_filter(
                 array_map(

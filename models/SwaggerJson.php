@@ -15,10 +15,17 @@ class SwaggerJson extends Component
     public $siteName;
     public $hostName;
     public $adminEmail;
+    public SwaggerRefsStorage $refsStorage;
 
     protected $tags = [];
     protected $paths = [];
-    protected $definitions;
+
+    public function init()
+    {
+        parent::init();
+
+        $this->refsStorage = new SwaggerRefsStorage();
+    }
 
     public function addMethod()
     {
@@ -88,15 +95,6 @@ class SwaggerJson extends Component
     }
 
     /**
-     * @param string $name
-     * @param array $params
-     */
-    public function addDefinition($name, $params)
-    {
-        $this->definitions[$name] = $params;
-    }
-
-    /**
      * @return array
      */
     public function toArray()
@@ -119,7 +117,7 @@ class SwaggerJson extends Component
             'schemes' => [\Yii::$app->request->isSecureConnection ? 'https' : 'http'],
             'tags' => $this->tags,
             'paths' => $this->paths,
-            'definitions' => $this->definitions ?: (object)[],
+            'definitions' => $this->refsStorage->exportDefinitions(),
         ];
 
         $event = new SwaggerExportEvent([

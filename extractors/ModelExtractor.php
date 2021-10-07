@@ -3,14 +3,12 @@
 namespace steroids\swagger\extractors;
 
 use steroids\core\base\FormModel;
-use steroids\core\base\Type;
-use steroids\swagger\helpers\ExtractorHelper;
 use steroids\swagger\models\SwaggerContext;
 use steroids\swagger\models\SwaggerProperty;
 use yii\base\Exception;
 use yii\base\Model;
-use yii\db\BaseActiveRecord;
 use yii\helpers\ArrayHelper;
+use yii\helpers\StringHelper;
 
 class ModelExtractor
 {
@@ -23,6 +21,10 @@ class ModelExtractor
      */
     public static function extract(SwaggerContext $context, array $fields = null): SwaggerProperty
     {
+        if ($context->isInputForGetMethod) {
+            return new SwaggerProperty();
+        }
+
         if (is_array($fields)) {
             $context->fields = $fields;
         } else {
@@ -32,6 +34,14 @@ class ModelExtractor
 
         if (!is_string($className) || !class_exists($className)) {
             throw new \Exception('Invalid class name: ' . $className);
+        }
+
+        // Refs
+        if ($context->refsStorage && !$context->fields) {
+            $refKey = StringHelper::basename($className) . ($context->isInput ? 'Input' : '') . ($context->scope ? 'Scope' . ucfirst($context->scope) : '');
+            if ($context->refsStorage->hasRef($refKey)) {
+                return $context->refsStorage->getRef($refKey);
+            }
         }
 
         $model = new $className();
@@ -61,12 +71,9 @@ class ModelExtractor
                 }
             }
 
-            // Default fields
             if ($fields === null) {
-                $fields = $model->fields();
+                $fields = static::getModelFields($context, $model);
             }
-
-            // TODO frontendFields()
         }
 
         // Detect * => model.*
@@ -82,7 +89,7 @@ class ModelExtractor
                     $subClassName = $subProperty->phpType;
                     if (class_exists($subClassName)) {
                         $subModel = new $subClassName();
-                        foreach ($subModel->fields() as $key2 => $name2) {
+                        foreach (static::getModelFields($context, $subModel) as $key2 => $name2) {
                             $key2 = is_int($key2) ? $name2 : $key2;
                             $fields[$key2] = $attribute . '.' . $name2;
                         }
@@ -116,9 +123,18 @@ class ModelExtractor
             }
         }
 
-        return new SwaggerProperty([
+        $resultProperty = new SwaggerProperty([
             'items' => $items,
         ]);
+
+        // Refs
+        if (isset($refKey)) {
+            $resultProperty->refName = $refKey;
+            $resultProperty->refsStorage = $context->refsStorage;
+            $context->refsStorage->setRef($refKey, $resultProperty);
+        }
+
+        return $resultProperty;
     }
 
     public static function prepareContextByPath(SwaggerContext $context, array $attributes)
@@ -147,5 +163,25 @@ class ModelExtractor
         }
 
         return $context;
+    }
+
+    /**
+     * @param SwaggerContext $context
+     * @param FormModel|Model $model
+     * @return null
+     */
+    protected static function getModelFields(SwaggerContext $context, $model)
+    {
+        $fields = null;
+        if (method_exists($model, 'frontendFields')) {
+            $fields = ArrayHelper::getValue(
+                $model->frontendFields(),
+                $context->scope ?: \steroids\core\base\Model::SCOPE_DEFAULT,
+            );
+        }
+        if (!$fields) {
+            $fields = $model->fields();
+        }
+        return $fields;
     }
 }

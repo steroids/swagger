@@ -3,6 +3,7 @@
 namespace steroids\swagger\extractors;
 
 use steroids\core\components\SiteMapItem;
+use steroids\swagger\models\SwaggerRefsStorage;
 
 class SiteMapDocExtractor extends BaseDocExtractor
 {
@@ -33,17 +34,13 @@ class SiteMapDocExtractor extends BaseDocExtractor
                     'item' => $item,
                     'url' => $item->urlRule,
                     'title' => $item->label,
+                    'refsStorage' => $this->swaggerJson->refsStorage,
                 ]))->run();
             }
             if (is_array($item->items)) {
                 $this->recursiveExtract($item->items);
             }
         }
-
-        // Add refs
-//        foreach (SwaggerTypeExtractor::getInstance()->refs as $name => $ref) {
-//            $this->swaggerJson->addDefinition($name, $ref);
-//        }
     }
 
     /**

@@ -6,11 +6,13 @@ use PhpParser\Comment;
 use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\ArrayItem;
 use PhpParser\Node\Expr\Assign;
+use PhpParser\Node\Expr\ClassConstFetch;
 use PhpParser\Node\Expr\ConstFetch;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\New_;
 use PhpParser\Node\Expr\StaticCall;
 use PhpParser\Node\Expr\Variable;
+use PhpParser\Node\Identifier;
 use PhpParser\Node\Scalar\DNumber;
 use PhpParser\Node\Scalar\LNumber;
 use PhpParser\Node\Scalar\String_;
@@ -18,8 +20,6 @@ use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Return_;
 use PhpParser\ParserFactory;
-use steroids\swagger\extractors\ClassExtractor;
-use steroids\swagger\extractors\TypeExtractor;
 use steroids\swagger\helpers\ExtractorHelper;
 use steroids\swagger\models\SwaggerContext;
 use steroids\swagger\models\SwaggerProperty;
@@ -51,17 +51,18 @@ abstract class AstExtractor
             return $node instanceof ClassMethod && $node->name->name === $method;
         });
 
-        /** @var Assign[] $assignNodes */
+        /** @var Variable[] $variables */
         $variables = [];
+
+        /** @var Assign[] $assignNodes */
         $assignNodes = static::findAll($methodNode, function ($node) use ($method) {
             return $node instanceof Assign;
         });
         foreach ($assignNodes as $assignNode) {
             if ($assignNode->var instanceof Variable) {
-                $variables[$assignNode->var->name] = $assignNode->expr;
+                $variables[$assignNode->var->name] = $assignNode;
             }
         }
-
 
         /** @var SwaggerProperty[] $properties */
         $properties = [];
@@ -77,12 +78,12 @@ abstract class AstExtractor
     /**
      * @param SwaggerContext $context
      * @param $node
-     * @param $variables
+     * @param Variable[] $variables
      * @return SwaggerProperty|string[]|null
      * @throws Exception
      * @throws \ReflectionException
      */
-    protected static function nodeToProperty(SwaggerContext $context, $node, $variables)
+    protected static function nodeToProperty(SwaggerContext $context, $node, array $variables)
     {
         // Array list
         if ($node instanceof Array_) {
@@ -104,39 +105,26 @@ abstract class AstExtractor
         if ($node instanceof ArrayItem) {
             $property = static::nodeToProperty($context, $node->value, $variables);
             if ($property) {
-                $rawComments = $node->getDocComment()
-                    ? [$node->getDocComment()]
-                    : $node->getComments();
-                $comments = [];
-                $examples = [];
-                foreach ($rawComments as $comment) {
-                    /** @var $comment Comment\Doc|Comment */
-                    foreach (explode("\n", $comment->getText()) as $line) {
-                        $line = preg_replace('/^\/\/|^\s*\/?\*+\/?|\*\/$/', '', $line);
-                        $line = trim($line);
-                        if ($line) {
-                            if (preg_match('/^@(var|type) *([^ ]+) *(.*)/', $line, $match)) {
-                                $tmpProperty = TypeExtractor::extract($context, $match[2]);
-                                if ($tmpProperty && !$tmpProperty->isPrimitive && $tmpProperty->phpType) {
-                                    $tmpProperty = ClassExtractor::extract($context, $tmpProperty->phpType);
-                                }
-                                if ($tmpProperty) {
-                                    $tmpProperty->name = $property->name;
-                                    $property = $tmpProperty;
-                                }
-                                if (!empty($match[3])) {
-                                    $comments[] = $match[3];
-                                }
-                            } elseif (preg_match('/^@example *(.+)/', $line, $match)) {
-                                $examples[] = ExtractorHelper::fixJson($match[1]);
-                            } else {
-                                $comments[] = $line;
-                            }
-                        }
+                $parsedComment = static::parseNodeComments($context, $node);
+                if ($parsedComment['property']) {
+                    $parsedComment['property']->name = $property->name;
+                    $property = $parsedComment['property'];
+                }
+
+                $property->description = implode("\n", $parsedComment['comments']) ?: $property->description;
+                $property->example = implode("\n", $parsedComment['examples']) ?: $property->example;
+
+                // Find scope in ast calls
+                $scope = static::findScope($node);
+                if (!$scope) {
+                    // Find scope in phpdoc
+                    if (preg_match('/SCOPE_([A-Za-z0-9_]+)/', $property->description, $scopeMatch)) {
+                        $scope = $scopeMatch = mb_strtolower($scopeMatch[1]);
                     }
                 }
-                $property->description = implode("\n", $comments);
-                $property->example = implode("\n", $examples);
+                if ($scope) {
+                    $context->scope = $scope;
+                }
 
                 if ($node->key instanceof String_) {
                     $property->name = $node->key->value;
@@ -150,6 +138,7 @@ abstract class AstExtractor
 
         // Create instance (new Foo())
         if ($node instanceof New_ && isset($node->class->parts) && count($node->class->parts) === 1) {
+            $context->scope = static::findScope($node) ?: $context->scope;
             return ClassExtractor::extract(
                 $context->child(),
                 $node->class->parts[0]
@@ -158,7 +147,9 @@ abstract class AstExtractor
 
         // Active query one() and all() calls
         if ($node instanceof MethodCall && in_array($node->name->name, ['one', 'all'])) {
-            $staticCallNode = static::findFirst($node, function($subNode) {
+            $context->scope = static::findScope($node) ?: $context->scope;
+
+            $staticCallNode = static::findFirst($node, function ($subNode) {
                 return $subNode instanceof StaticCall && $subNode->name->name === 'find';
             });
             if ($staticCallNode && count($staticCallNode->class->parts) === 1) {
@@ -173,17 +164,14 @@ abstract class AstExtractor
 
         // Active query findOne() and findAll() calls
         if ($node instanceof StaticCall && in_array($node->name->name, ['findOne', 'findAll']) && count($node->class->parts) === 1) {
+            $context->scope = static::findScope($node) ?: $context->scope;
+
             $property = ClassExtractor::extract(
                 $context->child(),
                 $node->class->parts[0],
             );
             $property->isArray = $node->name->name === 'findAll';
             return $property;
-        }
-
-        // Variable
-        if ($node instanceof Variable && isset($variables[$node->name])) {
-            return static::nodeToProperty($context, $variables[$node->name], $variables);
         }
 
         // Primitive types
@@ -202,10 +190,70 @@ abstract class AstExtractor
             }
         }
 
-        return new SwaggerProperty([
-            'isPrimitive' => true,
-            'phpType' => 'string',
-        ]);
+        // Variable
+        if ($node instanceof Variable && isset($variables[$node->name])) {
+            return static::nodeToProperty($context, $variables[$node->name]->expr, $variables);
+        } elseif ($node instanceof MethodCall && $node->var instanceof Variable && isset($variables[$node->var->name])) {
+            $parsedComment = static::parseNodeComments($context, $variables[$node->var->name]);
+            if ($parsedComment['property']) {
+                return $parsedComment['property'];
+            }
+        }
+
+
+        return new SwaggerProperty();
+    }
+
+    protected static function parseNodeComments(SwaggerContext $context, $node)
+    {
+        $comments = [];
+        $examples = [];
+        $property = null;
+
+        $rawComments = $node->getDocComment() ? [$node->getDocComment()] : $node->getComments();
+        foreach ($rawComments as $comment) {
+            /** @var $comment Comment\Doc|Comment */
+            foreach (explode("\n", $comment->getText()) as $line) {
+                $line = preg_replace('/^\/\/|^\s*\/?\*+\/?|\*\/$/', '', $line);
+                $line = trim($line);
+                if ($line) {
+                    if (preg_match('/^@(var|type) *([^ ]+) *(\$[^ ]+ *)?(.*)/', $line, $match)) {
+                        $property = TypeExtractor::extract($context, $match[2]);
+                        if (!empty($match[3])) {
+                            $property->name = preg_replace('/^\$/', '', trim($match[3]));
+                        }
+                        if (!empty($match[4])) {
+                            $comments[] = $match[4];
+                        }
+                    } elseif (preg_match('/^@example *(.+)/', $line, $match)) {
+                        $examples[] = ExtractorHelper::fixJson($match[1]);
+                    } else {
+                        $comments[] = $line;
+                    }
+                }
+            }
+        }
+
+        if ($property) {
+            $property->description = implode("\n", $comments);
+            $property->example = implode("\n", $examples);
+        }
+
+        return [
+            'comments' => $comments,
+            'examples' => $examples,
+            'property' => $property,
+        ];
+
+    }
+
+    protected static function findScope($astNode)
+    {
+        /** @var ClassConstFetch $node */
+        $node = static::findFirst($astNode, function ($node) {
+            return $node instanceof ClassConstFetch && $node->name instanceof Identifier && strpos($node->name->name, 'SCOPE_') === 0;
+        });
+        return $node ? mb_strtolower(preg_replace('/^SCOPE_/', '', $node->name->name)) : null;
     }
 
     protected static function findFirst($astNode, $callback)
@@ -218,13 +266,25 @@ abstract class AstExtractor
     {
         $stmts = [];
         if (is_array($astNode)) {
-            $stmts = $astNode;
-        } elseif (isset($astNode->stmts)) {
-            $stmts = $astNode->stmts;
-        } elseif (isset($astNode->var)) {
-            $stmts = [$astNode->var];
-        } elseif (isset($astNode->expr)) {
-            $stmts = [$astNode->expr];
+            $stmts = array_merge($stmts, $astNode);
+        }
+        if (isset($astNode->stmts)) {
+            $stmts = array_merge($stmts, $astNode->stmts);
+        }
+        if (isset($astNode->var)) {
+            $stmts[] = $astNode->var;
+        }
+        if (isset($astNode->expr)) {
+            $stmts[] = $astNode->expr;
+        }
+        if (isset($astNode->value)) {
+            $stmts[] = $astNode->value;
+        }
+        if (isset($astNode->items)) {
+            $stmts = array_merge($stmts, $astNode->items);
+        }
+        if (isset($astNode->args)) {
+            $stmts = array_merge($stmts, $astNode->args);
         }
 
         $result = [];

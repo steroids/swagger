@@ -2,6 +2,7 @@
 
 namespace steroids\swagger\extractors;
 
+use steroids\core\base\CrudApiController;
 use steroids\swagger\models\SwaggerContext;
 use steroids\swagger\models\SwaggerProperty;
 use yii\base\Exception;
@@ -35,6 +36,35 @@ class ClassMethodExtractor
             'className' => $methodInfo->getDeclaringClass()->name,
             'methodName' => $methodInfo->name,
         ]);
+
+        // Detect CRUD controller
+        $className = $context->className;
+        if (is_subclass_of($className, CrudApiController::class) && in_array($context->methodName, ['actionIndex', 'actionCreate', 'actionUpdate', 'actionView'])) {
+            // Get model class
+            $modelClass = $className::modelClass() ?: $className::$modelClass;
+            if ($context->methodName === 'actionIndex') {
+                $modelClass = $className::searchModelClass() ?: $className::$searchModelClass ?: $modelClass;
+            } elseif ($context->isInput) {
+                $viewSchema = $className::viewSchema();
+                if ($viewSchema) {
+                    return SchemaExtractor::extract($childContext->child([
+                        'className' => $viewSchema,
+                    ]));
+                }
+            }
+
+            // Check model exists
+            if (!$modelClass) {
+                return new SwaggerProperty();
+            }
+
+            return $context->methodName === 'actionIndex'
+                ? SearchModelExtractor::extract($childContext->child([
+                    'className' => $modelClass,
+                    'fields' => (new $className('tmp', 'tmp'))->fields(),
+                ]))
+                : ClassExtractor::extract($childContext, $modelClass);
+        }
 
         // Listens
         if ($childContext->isInput && preg_match_all('/@request-listen-relation\s+([^\s]+)/i', $comment, $listenMatch)) {
@@ -76,9 +106,11 @@ class ClassMethodExtractor
         }
 
         // Find return type in source AST
-        $properties = AstExtractor::extract($childContext, $methodInfo->name);
-        if (count($properties) > 0) {
-            return $properties[0];
+        if (!$context->isInputForGetMethod) {
+            $properties = AstExtractor::extract($childContext, $methodInfo->name);
+            if (count($properties) > 0) {
+                return $properties[0];
+            }
         }
 
         return TypeExtractor::extract($childContext, '');

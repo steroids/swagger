@@ -5,6 +5,7 @@ namespace steroids\swagger\extractors;
 use steroids\core\base\BaseSchema;
 use steroids\swagger\models\SwaggerContext;
 use steroids\swagger\models\SwaggerProperty;
+use yii\helpers\StringHelper;
 
 class SchemaExtractor
 {
@@ -21,6 +22,14 @@ class SchemaExtractor
 //        if (!isset($this->refs[$schemaName])) {
         /** @var BaseSchema $schema */
         $schema = new $className();
+
+        // Refs
+        if ($context->refsStorage && !$fields && !$context->isInput) {
+            $refKey = StringHelper::basename($className);
+            if ($context->refsStorage->hasRef($refKey)) {
+                return $context->refsStorage->getRef($refKey);
+            }
+        }
 
         if ($fields === null) {
             $fields = $schema->fields();
@@ -67,17 +76,18 @@ class SchemaExtractor
             }
         }
 
-//            $this->refs[$schemaName] = new SwaggerProperty([
-//                'items' => $items,
-//            ]);
-//        }
 
-        return new SwaggerProperty([
+        $resultProperty = new SwaggerProperty([
             'items' => $items,
         ]);
-//        return [
-//            //'type' => 'schema',
-//            '$ref' => '#/definitions/' . $schemaName,
-//        ];
+
+        // Refs
+        if (isset($refKey)) {
+            $resultProperty->refName = $refKey;
+            $resultProperty->refsStorage = $context->refsStorage;
+            $context->refsStorage->setRef($refKey, $resultProperty);
+        }
+
+        return $resultProperty;
     }
 }

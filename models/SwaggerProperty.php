@@ -2,13 +2,14 @@
 
 namespace steroids\swagger\models;
 
+use steroids\core\interfaces\ISwaggerProperty;
 use steroids\swagger\helpers\ExtractorHelper;
 use yii\base\BaseObject;
 use yii\base\Exception;
 use yii\helpers\ArrayHelper;
 use yii\helpers\Json;
 
-class SwaggerProperty extends BaseObject
+class SwaggerProperty extends BaseObject implements ISwaggerProperty
 {
     const DEFAULT_TYPE = 'string';
 
@@ -37,6 +38,11 @@ class SwaggerProperty extends BaseObject
      * @var string|null
      */
     public ?string $refName = null;
+
+    /**
+     * @var SwaggerRefsStorage|null
+     */
+    public ?SwaggerRefsStorage $refsStorage = null;
 
     /**
      * Source php type - primitive or class name
@@ -97,8 +103,39 @@ class SwaggerProperty extends BaseObject
      */
     public ?array $items = null;
 
-    public function export()
+    public function setPhpType(string $value)
     {
+        $this->phpType = $value;
+    }
+
+    public function setFormat(string $value)
+    {
+        $this->format = $value;
+    }
+
+    public function setIsArray(bool $value)
+    {
+        $this->isArray = $value;
+    }
+
+    public function setEnum(array $keys)
+    {
+        $this->enum = $keys;
+    }
+
+    public function isEmpty()
+    {
+        return !$this->phpType && !$this->items;
+    }
+
+    public function export($skipRefs = false)
+    {
+        if (!$skipRefs && $this->refName && $this->refsStorage && $this->refsStorage->isInDefinitions($this->refName)) {
+            return [
+                '$ref' => '#/definitions/' . $this->refName,
+            ];
+        }
+
         // Get description and example from phpdoc
         if ($this->phpdoc) {
             // Class description
@@ -154,9 +191,9 @@ class SwaggerProperty extends BaseObject
         // TODO Refs...
 
         $schema = [
-            'type' => $this->isPrimitive
-                ? ArrayHelper::getValue(self::SINGLE_MAPPING, $this->phpType) ?: self::DEFAULT_TYPE
-                : 'object',
+            'type' => !$this->isPrimitive && $this->items
+                ? 'object'
+                : (ArrayHelper::getValue(self::SINGLE_MAPPING, $this->phpType) ?: self::DEFAULT_TYPE),
         ];
 
         if ($this->description) {

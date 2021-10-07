@@ -4,6 +4,7 @@ namespace steroids\swagger\extractors;
 
 use Doctrine\Common\Annotations\TokenParser;
 use steroids\core\base\BaseSchema;
+use steroids\core\base\SearchModel;
 use steroids\swagger\models\SwaggerContext;
 use steroids\swagger\models\SwaggerProperty;
 use yii\base\Exception;
@@ -29,6 +30,8 @@ class ClassExtractor
 
         if (is_subclass_of($className, BaseSchema::class)) {
             return SchemaExtractor::extract($childContext, $fields);
+        } elseif (is_subclass_of($className, SearchModel::class)) {
+            return SearchModelExtractor::extract($childContext, $fields);
         } elseif (is_subclass_of($className, Model::class)) {
             return ModelExtractor::extract($childContext, $fields);
         }
