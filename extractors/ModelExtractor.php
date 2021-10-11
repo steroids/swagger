@@ -38,7 +38,13 @@ class ModelExtractor
 
         // Refs
         if ($context->refsStorage && !$context->fields) {
-            $refKey = StringHelper::basename($className) . ($context->isInput ? 'Input' : '') . ($context->scope ? 'Scope' . ucfirst($context->scope) : '');
+            $refKey = StringHelper::basename($className) . ($context->isInput ? 'Input' : '');
+            if (!empty($context->scopes)) {
+                $refKey .= 'Scope';
+                foreach ($context->scopes ?: [] as $scope) {
+                    $refKey .= ucfirst($scope);
+                }
+            }
             if ($context->refsStorage->hasRef($refKey)) {
                 return $context->refsStorage->getRef($refKey);
             }
@@ -174,10 +180,20 @@ class ModelExtractor
     {
         $fields = null;
         if (method_exists($model, 'frontendFields')) {
-            $fields = ArrayHelper::getValue(
-                $model->frontendFields(),
-                $context->scope ?: \steroids\core\base\Model::SCOPE_DEFAULT,
-            );
+            $scopes = $context->scopes ?: [];
+            if (!in_array(\steroids\core\base\Model::SCOPE_DEFAULT, $scopes)) {
+                array_unshift($scopes, \steroids\core\base\Model::SCOPE_DEFAULT);
+            }
+            $frontendFields = $model->frontendFields();
+            if ($frontendFields !== null) {
+                $fields = [];
+                foreach ($scopes as $scope) {
+                    $fields = array_merge(
+                        $fields,
+                        ArrayHelper::getValue($frontendFields, $scope, []),
+                    );
+                }
+            }
         }
         if (!$fields) {
             $fields = $model->fields();

@@ -99,6 +99,7 @@ class SwaggerJson extends Component
      */
     public function toArray()
     {
+        ArrayHelper::multisort($this->tags, 'name');
         $json = [
             'swagger' => '2.0',
             'info' => [

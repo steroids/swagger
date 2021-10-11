@@ -87,6 +87,12 @@ class SwaggerProperty extends BaseObject implements ISwaggerProperty
     public ?bool $isArray = false;
 
     /**
+     * Depth array of arrays
+     * @var int
+     */
+    public int $arrayDepth = 1;
+
+    /**
      * Is primitive type?
      * @var bool|null
      */
@@ -131,90 +137,91 @@ class SwaggerProperty extends BaseObject implements ISwaggerProperty
     public function export($skipRefs = false)
     {
         if (!$skipRefs && $this->refName && $this->refsStorage && $this->refsStorage->isInDefinitions($this->refName)) {
-            return [
+            $schema = [
                 '$ref' => '#/definitions/' . $this->refName,
             ];
-        }
-
-        // Get description and example from phpdoc
-        if ($this->phpdoc) {
-            // Class description
-            if (preg_match('/@property(-read)? +[^ ]+ \$[^ ]+ (.*)/u', $this->phpdoc, $matches)) {
-                if (!empty($matches[2])) {
-                    $this->description = $matches[2];
-                }
-            } else {
-                // Find first comment line as description
-                foreach (explode("\n", $this->phpdoc) as $line) {
-                    $line = preg_replace('/^\s*\\/?\*+/', '', $line);
-                    $line = trim($line);
-                    if ($line && $line !== '/' && substr($line, 0, 1) !== '@') {
-                        $this->description = $line;
-                        break;
+        } else {
+            // Get description and example from phpdoc
+            if ($this->phpdoc) {
+                // Class description
+                if (preg_match('/@property(-read)? +[^ ]+ \$[^ ]+ (.*)/u', $this->phpdoc, $matches)) {
+                    if (!empty($matches[2])) {
+                        $this->description = $matches[2];
                     }
-                }
+                } else {
+                    // Find first comment line as description
+                    foreach (explode("\n", $this->phpdoc) as $line) {
+                        $line = preg_replace('/^\s*\\/?\*+/', '', $line);
+                        $line = trim($line);
+                        if ($line && $line !== '/' && substr($line, 0, 1) !== '@') {
+                            $this->description = $line;
+                            break;
+                        }
+                    }
 
-                if (!$this->example && preg_match('/@example (.*)/u', $this->phpdoc, $matches)) {
-                    $this->example = trim($matches[1]);
-                }
+                    if (!$this->example && preg_match('/@example (.*)/u', $this->phpdoc, $matches)) {
+                        $this->example = trim($matches[1]);
+                    }
 
-                // Get description from type param
-                if (preg_match('/@(var|type) +([^ |\n]+) (.*)/u', $this->phpdoc, $matches)) {
-                    if (!empty($matches[3])) {
-                        $this->description = $matches[3];
+                    // Get description from type param
+                    $parsedLine = ExtractorHelper::parseCommentType($this->phpdoc);
+                    if ($parsedLine['description']) {
+                        $this->description = $parsedLine['description'];
                     }
                 }
             }
-        }
 
-        // Support array/object examples
-        if (!empty($schema['example']) && in_array(substr($schema['example'], 0, 1), ['[', '{'])) {
-            $schema['example'] = Json::decode(ExtractorHelper::fixJson($schema['example']));
-        }
+            // Support array/object examples
+            if (!empty($schema['example']) && in_array(substr($schema['example'], 0, 1), ['[', '{'])) {
+                $schema['example'] = Json::decode(ExtractorHelper::fixJson($schema['example']));
+            }
 
-        $properties = null;
-        $required = null;
-        if (!$this->isPrimitive && $this->items) {
-            $properties = [];
-            $required = [];
-            foreach ($this->items as $item) {
-                if ($item->name === null) {
-                    throw new Exception('Not found name for item: ...');
+            $properties = null;
+            $required = null;
+            if (!$this->isPrimitive && $this->items) {
+                $properties = [];
+                $required = [];
+                foreach ($this->items as $item) {
+                    if ($item->name === null) {
+                        throw new Exception('Not found name for item: ...');
+                    }
+                    $properties[$item->name] = $item->export();
+                    if ($item->isRequired) {
+                        $required[] = $item->name;
+                    }
                 }
-                $properties[$item->name] = $item->export();
-                if ($item->isRequired) {
-                    $required[] = $item->name;
-                }
+            }
+
+            $schema = [
+                'type' => !$this->isPrimitive && $this->items
+                    ? 'object'
+                    : (ArrayHelper::getValue(self::SINGLE_MAPPING, $this->phpType) ?: self::DEFAULT_TYPE),
+            ];
+
+            if ($this->description) {
+                $schema['description'] = $this->description;
+            }
+            if ($this->example) {
+                $schema['example'] = $this->example;
+            }
+            if ($this->format) {
+                $schema['format'] = $this->format;
+            }
+            if (!empty($properties)) {
+                $schema['properties'] = $properties;
             }
         }
 
-        // TODO Refs...
-
-        $schema = [
-            'type' => !$this->isPrimitive && $this->items
-                ? 'object'
-                : (ArrayHelper::getValue(self::SINGLE_MAPPING, $this->phpType) ?: self::DEFAULT_TYPE),
-        ];
-
-        if ($this->description) {
-            $schema['description'] = $this->description;
-        }
-        if ($this->example) {
-            $schema['example'] = $this->example;
-        }
-        if ($this->format) {
-            $schema['format'] = $this->format;
-        }
-        if (!empty($properties)) {
-            $schema['properties'] = $properties;
+        if ($this->isArray) {
+            for ($i = 0; $i < $this->arrayDepth; $i++) {
+                $schema = [
+                    'type' => 'array',
+                    'items' => $schema,
+                ];
+            }
         }
 
-        return $this->isArray
-            ? [
-                'type' => 'array',
-                'items' => $schema,
-            ]
-            : $schema;
+        return $schema;
     }
 }
 

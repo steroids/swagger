@@ -8,9 +8,12 @@ use steroids\swagger\extractors\ClassMethodExtractor;
 use steroids\swagger\extractors\ModelExtractor;
 use steroids\swagger\extractors\ObjectExtractor;
 use steroids\swagger\models\SwaggerContext;
+use steroids\swagger\tests\mocks\AstController;
 use steroids\swagger\tests\mocks\BarObject;
 use steroids\swagger\tests\mocks\FirstController;
 use steroids\swagger\tests\mocks\FooModel;
+use steroids\swagger\tests\mocks\ScopeController;
+use steroids\swagger\tests\mocks\ScopeControllerv;
 use yii\helpers\ArrayHelper;
 
 class SwaggerTest extends TestCase
@@ -43,7 +46,7 @@ class SwaggerTest extends TestCase
     {
         $context = new SwaggerContext(['className' => FirstController::class]);
 
-        $property = ClassMethodExtractor::extract($context->child(['isInput' => true]),'actionIndex');
+        $property = ClassMethodExtractor::extract($context->child(['isInput' => true]), 'actionIndex');
         $this->assertEquals('id,title', implode(',', ArrayHelper::getColumn($property->items, 'name')));
 
         $property = ClassMethodExtractor::extract($context->child(['isInput' => false]), 'actionIndex');
@@ -85,5 +88,34 @@ class SwaggerTest extends TestCase
             'count', // model3
             implode(',', ArrayHelper::getColumn($properties[0]->items[0]->items[2]->items, 'name'))
         );
+    }
+
+    public function testScope()
+    {
+        $properties = AstExtractor::extract(new SwaggerContext(['className' => AstController::class]), 'actionScope');
+
+        $this->assertEquals('foo', $properties[0]->items[0]->name);
+        $this->assertEquals('Model with scope: SCOPE_DETAIL', $properties[0]->items[0]->description);
+        $this->assertEquals(
+            'id,name,role',
+            implode(',', ArrayHelper::getColumn($properties[0]->items[0]->items, 'name'))
+        );
+
+        $this->assertEquals('bar', $properties[0]->items[1]->name);
+        $this->assertEquals('Bar with scope: SCOPE_DEFAULT', $properties[0]->items[1]->description);
+        $this->assertEquals(
+            'id,name',
+            implode(',', ArrayHelper::getColumn($properties[0]->items[1]->items, 'name'))
+        );
+    }
+
+    public function testGenericType()
+    {
+        $properties = AstExtractor::extract(new SwaggerContext(['className' => AstController::class]), 'actionGenericType');
+
+        $this->assertEquals('items', $properties[0]->items[0]->name);
+        $this->assertEquals(true, $properties[0]->items[0]->isArray);
+        $this->assertEquals(2, $properties[0]->items[0]->arrayDepth);
+        $this->assertEquals('{"type":"object","properties":{"items":{"type":"array","items":{"type":"array","items":{"type":"object","properties":{"count":{"type":"number","description":"Count items"}}}}}}}', json_encode($properties[0]->export()));
     }
 }

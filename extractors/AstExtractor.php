@@ -50,6 +50,9 @@ abstract class AstExtractor
         $methodNode = static::findFirst($classNode, function ($node) use ($method) {
             return $node instanceof ClassMethod && $node->name->name === $method;
         });
+        if (!$methodNode) {
+            return [];
+        }
 
         /** @var Variable[] $variables */
         $variables = [];
@@ -90,7 +93,7 @@ abstract class AstExtractor
             $property = new SwaggerProperty();
             $property->items = [];
             foreach ($node->items as $i => $item) {
-                $subProperty = static::nodeToProperty($context, $item, $variables);
+                $subProperty = static::nodeToProperty($context->child(), $item, $variables);
                 if ($subProperty) {
                     if (!$subProperty->name) {
                         $subProperty->name = (string)$i;
@@ -103,28 +106,16 @@ abstract class AstExtractor
 
         // Array item
         if ($node instanceof ArrayItem) {
+            $parsedComment = static::parseNodeComments($context, $node);
             $property = static::nodeToProperty($context, $node->value, $variables);
+            if ($parsedComment['property']) {
+                $parsedComment['property']->name = $property->name;
+                $property = $parsedComment['property'];
+            }
             if ($property) {
-                $parsedComment = static::parseNodeComments($context, $node);
-                if ($parsedComment['property']) {
-                    $parsedComment['property']->name = $property->name;
-                    $property = $parsedComment['property'];
-                }
-
                 $property->description = implode("\n", $parsedComment['comments']) ?: $property->description;
                 $property->example = implode("\n", $parsedComment['examples']) ?: $property->example;
 
-                // Find scope in ast calls
-                $scope = static::findScope($node);
-                if (!$scope) {
-                    // Find scope in phpdoc
-                    if (preg_match('/SCOPE_([A-Za-z0-9_]+)/', $property->description, $scopeMatch)) {
-                        $scope = $scopeMatch = mb_strtolower($scopeMatch[1]);
-                    }
-                }
-                if ($scope) {
-                    $context->scope = $scope;
-                }
 
                 if ($node->key instanceof String_) {
                     $property->name = $node->key->value;
@@ -138,7 +129,7 @@ abstract class AstExtractor
 
         // Create instance (new Foo())
         if ($node instanceof New_ && isset($node->class->parts) && count($node->class->parts) === 1) {
-            $context->scope = static::findScope($node) ?: $context->scope;
+            $context->addScopes(static::findScopes($node));
             return ClassExtractor::extract(
                 $context->child(),
                 $node->class->parts[0]
@@ -147,7 +138,7 @@ abstract class AstExtractor
 
         // Active query one() and all() calls
         if ($node instanceof MethodCall && in_array($node->name->name, ['one', 'all'])) {
-            $context->scope = static::findScope($node) ?: $context->scope;
+            $context->addScopes(static::findScopes($node));
 
             $staticCallNode = static::findFirst($node, function ($subNode) {
                 return $subNode instanceof StaticCall && $subNode->name->name === 'find';
@@ -164,7 +155,7 @@ abstract class AstExtractor
 
         // Active query findOne() and findAll() calls
         if ($node instanceof StaticCall && in_array($node->name->name, ['findOne', 'findAll']) && count($node->class->parts) === 1) {
-            $context->scope = static::findScope($node) ?: $context->scope;
+            $context->addScopes(static::findScopes($node));
 
             $property = ClassExtractor::extract(
                 $context->child(),
@@ -192,6 +183,11 @@ abstract class AstExtractor
 
         // Variable
         if ($node instanceof Variable && isset($variables[$node->name])) {
+            $parsedComment = static::parseNodeComments($context, $variables[$node->name]);
+            if ($parsedComment['property']) {
+                return $parsedComment['property'];
+            }
+
             return static::nodeToProperty($context, $variables[$node->name]->expr, $variables);
         } elseif ($node instanceof MethodCall && $node->var instanceof Variable && isset($variables[$node->var->name])) {
             $parsedComment = static::parseNodeComments($context, $variables[$node->var->name]);
@@ -208,7 +204,9 @@ abstract class AstExtractor
     {
         $comments = [];
         $examples = [];
-        $property = null;
+        $parsedLines = [];
+
+        $context->addScopes(static::findScopes($node));
 
         $rawComments = $node->getDocComment() ? [$node->getDocComment()] : $node->getComments();
         foreach ($rawComments as $comment) {
@@ -217,19 +215,37 @@ abstract class AstExtractor
                 $line = preg_replace('/^\/\/|^\s*\/?\*+\/?|\*\/$/', '', $line);
                 $line = trim($line);
                 if ($line) {
-                    if (preg_match('/^@(var|type) *([^ ]+) *(\$[^ ]+ *)?(.*)/', $line, $match)) {
-                        $property = TypeExtractor::extract($context, $match[2]);
-                        if (!empty($match[3])) {
-                            $property->name = preg_replace('/^\$/', '', trim($match[3]));
+                    $parsedLine = ExtractorHelper::parseCommentType($line);
+                    if (in_array($parsedLine['tag'], ['var', 'type'])) {
+                        $parsedLines[] = $parsedLine;
+
+                        // Comment
+                        if ($parsedLine['description']) {
+                            $comments[] = $parsedLine['description'];
+
+                            // Scopes
+                            if (preg_match_all('/SCOPE_([A-Z0-9_]+)/', $parsedLine['description'], $scopeMatches)) {
+                                $context->addScopes(array_map(fn($s) => strtolower($s), $scopeMatches[1]));
+                            }
                         }
-                        if (!empty($match[4])) {
-                            $comments[] = $match[4];
-                        }
-                    } elseif (preg_match('/^@example *(.+)/', $line, $match)) {
-                        $examples[] = ExtractorHelper::fixJson($match[1]);
-                    } else {
-                        $comments[] = $line;
+
+                    } elseif ($parsedLine['tag'] === 'example') {
+                        $examples[] = ExtractorHelper::fixJson($parsedLine['description']);
                     }
+                }
+            }
+        }
+
+        // Find property after scopes defined
+        $property = null;
+        foreach ($parsedLines as $parsedLine) {
+            if ($parsedLine['type']) {
+                $property = TypeExtractor::extract($context, $parsedLine['type']);
+                if ($parsedLine['variable']) {
+                    $property->name = $parsedLine['variable'];
+                }
+                if (!$property->isEmpty()) {
+                    break;
                 }
             }
         }
@@ -247,13 +263,17 @@ abstract class AstExtractor
 
     }
 
-    protected static function findScope($astNode)
+    protected static function findScopes($astNode)
     {
         /** @var ClassConstFetch $node */
         $node = static::findFirst($astNode, function ($node) {
             return $node instanceof ClassConstFetch && $node->name instanceof Identifier && strpos($node->name->name, 'SCOPE_') === 0;
         });
-        return $node ? mb_strtolower(preg_replace('/^SCOPE_/', '', $node->name->name)) : null;
+
+        // TODO Find multiple
+        $scope = $node ? mb_strtolower(preg_replace('/^SCOPE_/', '', $node->name->name)) : null;
+
+        return $scope ? [$scope] : [];
     }
 
     protected static function findFirst($astNode, $callback)

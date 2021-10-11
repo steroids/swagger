@@ -18,7 +18,7 @@ class SwaggerContext extends BaseObject
 
     public ?array $fields = null;
 
-    public ?string $scope = null;
+    public ?array $scopes = [];
 
     public ?string $comment = null;
 
@@ -40,6 +40,7 @@ class SwaggerContext extends BaseObject
                 'isInput' => $this->isInput,
                 'isInputForGetMethod' => $this->isInputForGetMethod,
                 'refsStorage' => $this->refsStorage,
+                'scopes' => $this->scopes,
                 'className' => $this->className,
             ],
             $params,
@@ -47,5 +48,10 @@ class SwaggerContext extends BaseObject
                 'parent' => $this,
             ]
         ));
+    }
+
+    public function addScopes($scopes)
+    {
+        $this->scopes = array_unique(array_merge($this->scopes ?: [], $scopes ?: []));
     }
 }

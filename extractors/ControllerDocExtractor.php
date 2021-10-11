@@ -64,16 +64,45 @@ class ControllerDocExtractor extends BaseDocExtractor
         $controllerClass = get_class($controller);
         $methodName = 'action' . Inflector::id2camel($this->actionId);
 
+
+        $routeFullId = str_replace('/', '.', trim($this->moduleId, '/'));
+
         $context = new SwaggerContext(['className' => $controllerClass, 'refsStorage' => $this->refsStorage]);
         $inputProperty = ClassMethodExtractor::extract($context->child(['isInput' => true, 'isInputForGetMethod' => $httpMethod === 'get']), $methodName);
         $outputProperty = ClassMethodExtractor::extract($context->child(['isInput' => false]), $methodName);
 
-        $this->swaggerJson->addPath($url, $httpMethod, [
-            'summary' => $url,
-            'description' => $this->title,
-            'tags' => [
-                $this->siteMapPath ?: $this->moduleId,
-            ],
+
+        // moduleId: auth
+        //var_dump($this->siteMapPath, $url);
+
+        // Group in left sidebar UI
+        $group = $this->moduleId;
+        if (strpos($this->siteMapPath, 'admin.') === 0) {
+            $group .= '.admin';
+        }
+
+        // Label in left sidebar UI
+        $label = preg_replace('/^\/?api\/[^\/]+(\/admin)?/', '', $url);
+        if (strpos($label, '/' . $this->moduleId . '/') === 0) {
+            $label = substr($label, strlen($this->moduleId) + 1);
+        }
+        if (!$label) {
+            //$label = '/';
+        }
+
+        //$label = preg_replace('//', '', $label);
+
+
+        // TODO
+        // TODO
+        // TODO
+        // TODO
+        // TODO
+
+        $this->swaggerJson->addPath($this->siteMapPath, $httpMethod, [
+            'summary' => $label,
+            'description' => '<b>' . strtoupper($httpMethod) . ' /' . ltrim($url, '/') . '</b><br/>' . $this->title,
+            'tags' => [$group],
             'consumes' => [
                 'application/json'
             ],
@@ -173,7 +202,7 @@ class ControllerDocExtractor extends BaseDocExtractor
 
         // Remove action name
         if (count($ids) > 1) {
-            array_pop($ids);
+            //array_pop($ids);
         }
 
         return implode('.', $ids);

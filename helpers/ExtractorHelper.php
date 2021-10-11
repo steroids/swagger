@@ -3,6 +3,7 @@
 namespace steroids\swagger\helpers;
 
 use Doctrine\Common\Annotations\TokenParser;
+use steroids\swagger\models\SwaggerProperty;
 use yii\base\Exception;
 use yii\base\Model;
 use yii\db\ActiveQuery;
@@ -92,6 +93,54 @@ abstract class ExtractorHelper
         }
 
         return $model->getRelation($name, false);
+    }
+
+    public static function parseCommentType($line)
+    {
+        $line = trim($line);
+        $line = trim($line, '*/');
+
+        $result = [
+            'tag' => null,
+            'type' => null,
+            'variable' => null,
+            'description' => null,
+        ];
+        $isFullType = false;
+
+        foreach (explode(' ', $line) as $str) {
+            $str = trim($str);
+
+            // Tag
+            if (strpos($str, '@') === 0) {
+                $result['tag'] = substr($str, 1);
+                continue;
+            }
+
+            // Type
+            if (in_array($result['tag'], ['var', 'type'])) {
+                if (!$result['type']) {
+                    $result['type'] = $str;
+                    $isFullType = strpos($str, '<') === false;
+                    continue;
+                } elseif (!$isFullType) {
+                    $result['type'] .= ' ' . $str;
+                    $isFullType = true;
+                    continue;
+                }
+            }
+
+            // Variable
+            if (strpos($str, '$') === 0) {
+                $result['variable'] = substr($str, 1);
+                continue;
+            }
+
+            // Other: comment
+            $result['description'] .= ($result['description'] && $str ? ' ' : '') . $str;
+        }
+
+        return $result;
     }
 
     protected static function safeCreateInstance($modelClass)

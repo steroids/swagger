@@ -26,6 +26,15 @@ class TypeExtractor
      */
     public static function extract(SwaggerContext $context, string $rawType)
     {
+        // Detect generic array
+        if (preg_match('/array<(([^>,]+),\s*)?([^>]+)>/i', $rawType, $match)) {
+            // TODO How to says, that is key-array object?..
+            $property = static::extract($context, $match[3]);
+            $property->isArray = true;
+            $property->arrayDepth++;
+            return $property;
+        }
+
         // Detect array
         $isArray = preg_match('/\[\]$/', $rawType);
         $rawType = preg_replace('/\[\]$/', '', $rawType);

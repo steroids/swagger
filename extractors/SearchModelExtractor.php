@@ -49,7 +49,7 @@ class SearchModelExtractor
         $itemsProperty = ModelExtractor::extract($context->child([
             'className' => $modelClassName,
             'fields'=> $fields,
-            'scope' => Model::SCOPE_LIST,
+            'scopes' => [Model::SCOPE_LIST],
         ]));
         $itemsProperty->name = 'items';
         $itemsProperty->description = 'Fined items';

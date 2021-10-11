@@ -39,15 +39,21 @@ class ClassAttributeExtractor
         // Find in class property php doc
         if (!$rawType) {
             $propertyInfo = $classInfo->hasProperty($attribute) ? $classInfo->getProperty($attribute) : null;
-            if ($propertyInfo && $propertyInfo->getType() && $propertyInfo->getType()->getName()) {
-                $rawType = $propertyInfo->getType()->getName();
-            }
-            if ($propertyInfo && preg_match('/@(var|type) +([^ |\n]+)/u', $propertyInfo->getDocComment(), $matchProperty)) {
-                if (!$rawType) {
-                    $rawType = $matchProperty[2];
-                    $childContext->className = $propertyInfo->getDeclaringClass()->getName();
+            if ($propertyInfo) {
+                if ($propertyInfo->getType() && $propertyInfo->getType()->getName()) {
+                    $rawType = $propertyInfo->getType()->getName();
                 }
-                $childContext->comment = $propertyInfo->getDocComment();
+
+                $parsedLine = ExtractorHelper::parseCommentType($propertyInfo->getDocComment());
+                if (in_array($parsedLine['tag'], ['var', 'type'])) {
+                    if (!$rawType && $parsedLine['type']) {
+                        $rawType = $parsedLine['type'];
+                        $childContext->className = $propertyInfo->getDeclaringClass()->getName();
+                    }
+                    if ($parsedLine['description']) {
+                        $childContext->comment = $parsedLine['description'];
+                    }
+                }
             }
         }
 

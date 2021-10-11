@@ -14,7 +14,7 @@ use yii\web\Response;
 
 class SwaggerController extends Controller
 {
-    public $redocUrl = 'https://cdn.jsdelivr.net/npm/redoc/bundles/redoc.standalone.js';
+    public $redocUrl = 'https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js';
 
     public static function siteMap($baseUrl = 'api')
     {

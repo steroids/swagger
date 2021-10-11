@@ -25,14 +25,21 @@ class FooModel extends Model
             'title' => [
                 'label' => 'Role from meta',
             ],
+            'role' => [
+            ],
         ];
     }
 
-    public function fields()
+    public function frontendFields($user = null)
     {
         return [
-            'id',
-            'name',
+            self::SCOPE_DEFAULT => [
+                'id',
+                'name',
+            ],
+            self::SCOPE_DETAIL => [
+                'role',
+            ],
         ];
     }
 
@@ -51,7 +58,7 @@ class FooModel extends Model
     public function attributes()
     {
         // simulate database
-        return ['id', 'title'];
+        return ['id', 'role', 'title'];
     }
 
     /**
