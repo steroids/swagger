@@ -130,6 +130,7 @@ abstract class ExtractorHelper
                 case 'type':
                 case 'return':
                 case 'param':
+                case 'param-get':
                 case 'param-post':
                     if (!$result['variable']) {
                         if (!$result['type']) {

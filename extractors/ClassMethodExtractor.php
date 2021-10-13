@@ -95,7 +95,7 @@ class ClassMethodExtractor
         if ($childContext->isInput) {
             foreach (explode("\n", $comment) as $line) {
                 $parsedLine = ExtractorHelper::parseCommentType($line);
-                if (in_array($parsedLine['tag'], ['param', 'param-post'])) {
+                if (in_array($parsedLine['tag'], ['param', 'param-get', 'param-post'])) {
                     $paramProperty = TypeExtractor::extract($childContext, $parsedLine['type'] ?: '');
                     $paramProperty->name = $parsedLine['variable'];
                     $paramProperty->description = $parsedLine['description'];

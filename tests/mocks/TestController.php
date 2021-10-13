@@ -41,6 +41,15 @@ class TestController extends Controller
     }
 
     /**
+     * @param-get int $pageSize Page size
+     * @return int
+     */
+    public function actionCustomGetAliasParam(): int
+    {
+        return 1;
+    }
+
+    /**
      * @param-post $query Search query
      * @return int
      */

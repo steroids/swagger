@@ -124,6 +124,9 @@ class SwaggerTest extends TestCase
     {
         $property = ClassMethodExtractor::extract(new SwaggerContext(['className' => TestController::class, 'isInput' => true]), 'actionCustomGetParam');
         $this->assertEquals('{"type":"object","properties":{"pageSize":{"type":"number","description":"Page size"}}}', json_encode($property->export()));
+
+        $property = ClassMethodExtractor::extract(new SwaggerContext(['className' => TestController::class, 'isInput' => true]), 'actionCustomGetAliasParam');
+        $this->assertEquals('{"type":"object","properties":{"pageSize":{"type":"number","description":"Page size"}}}', json_encode($property->export()));
     }
 
     public function testCustomPostParam()
