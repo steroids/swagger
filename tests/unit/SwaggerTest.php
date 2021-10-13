@@ -14,6 +14,7 @@ use steroids\swagger\tests\mocks\FirstController;
 use steroids\swagger\tests\mocks\FooModel;
 use steroids\swagger\tests\mocks\ScopeController;
 use steroids\swagger\tests\mocks\ScopeControllerv;
+use steroids\swagger\tests\mocks\TestController;
 use yii\helpers\ArrayHelper;
 
 class SwaggerTest extends TestCase
@@ -92,7 +93,7 @@ class SwaggerTest extends TestCase
 
     public function testScope()
     {
-        $properties = AstExtractor::extract(new SwaggerContext(['className' => AstController::class]), 'actionScope');
+        $properties = AstExtractor::extract(new SwaggerContext(['className' => TestController::class]), 'actionScope');
 
         $this->assertEquals('foo', $properties[0]->items[0]->name);
         $this->assertEquals('Model with scope: SCOPE_DETAIL', $properties[0]->items[0]->description);
@@ -111,11 +112,23 @@ class SwaggerTest extends TestCase
 
     public function testGenericType()
     {
-        $properties = AstExtractor::extract(new SwaggerContext(['className' => AstController::class]), 'actionGenericType');
+        $properties = AstExtractor::extract(new SwaggerContext(['className' => TestController::class]), 'actionGenericType');
 
         $this->assertEquals('items', $properties[0]->items[0]->name);
         $this->assertEquals(true, $properties[0]->items[0]->isArray);
         $this->assertEquals(2, $properties[0]->items[0]->arrayDepth);
         $this->assertEquals('{"type":"object","properties":{"items":{"type":"array","items":{"type":"array","items":{"type":"object","properties":{"count":{"type":"number","description":"Count items"}}}}}}}', json_encode($properties[0]->export()));
+    }
+
+    public function testCustomGetParam()
+    {
+        $property = ClassMethodExtractor::extract(new SwaggerContext(['className' => TestController::class, 'isInput' => true]), 'actionCustomGetParam');
+        $this->assertEquals('{"type":"object","properties":{"pageSize":{"type":"number","description":"Page size"}}}', json_encode($property->export()));
+    }
+
+    public function testCustomPostParam()
+    {
+        $property = ClassMethodExtractor::extract(new SwaggerContext(['className' => TestController::class, 'isInput' => true]), 'actionCustomPostParam');
+        $this->assertEquals('{"type":"object","properties":{"query":{"type":"string","description":"Search query"}}}', json_encode($property->export()));
     }
 }

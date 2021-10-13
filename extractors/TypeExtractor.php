@@ -35,6 +35,13 @@ class TypeExtractor
             return $property;
         }
 
+        // Get only one type
+        // TODO Support multiple types
+        $separatorPos = strpos($rawType, '|');
+        if ($separatorPos !== false) {
+            $rawType = substr($rawType, 0, $separatorPos);
+        }
+
         // Detect array
         $isArray = preg_match('/\[\]$/', $rawType);
         $rawType = preg_replace('/\[\]$/', '', $rawType);

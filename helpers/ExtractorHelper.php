@@ -98,13 +98,14 @@ abstract class ExtractorHelper
     public static function parseCommentType($line)
     {
         $line = trim($line);
-        $line = trim($line, '*/');
+        $line = preg_replace('/^\/\/|^\s*\/?\*+\/?|\*\/$/', '', $line);
 
         $result = [
             'tag' => null,
             'type' => null,
             'variable' => null,
             'description' => null,
+            'example' => null,
         ];
         $isFullType = false;
 
@@ -117,23 +118,35 @@ abstract class ExtractorHelper
                 continue;
             }
 
-            // Type
-            if (in_array($result['tag'], ['var', 'type'])) {
-                if (!$result['type']) {
-                    $result['type'] = $str;
-                    $isFullType = strpos($str, '<') === false;
-                    continue;
-                } elseif (!$isFullType) {
-                    $result['type'] .= ' ' . $str;
-                    $isFullType = true;
-                    continue;
-                }
-            }
-
             // Variable
             if (strpos($str, '$') === 0) {
                 $result['variable'] = substr($str, 1);
                 continue;
+            }
+
+            // Type
+            switch ($result['tag']) {
+                case 'var':
+                case 'type':
+                case 'return':
+                case 'param':
+                case 'param-post':
+                    if (!$result['variable']) {
+                        if (!$result['type']) {
+                            $result['type'] = $str;
+                            $isFullType = strpos($str, '<') === false;
+                            continue 2;
+                        } elseif (!$isFullType) {
+                            $result['type'] .= ' ' . $str;
+                            $isFullType = true;
+                            continue 2;
+                        }
+                    }
+                    break;
+
+                case 'example':
+                    $result['example'] .= ($result['example'] ? ' ' : '') . $str;
+                    continue 2;
             }
 
             // Other: comment

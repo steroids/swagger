@@ -44,11 +44,13 @@ class ClassAttributeExtractor
                     $rawType = $propertyInfo->getType()->getName();
                 }
 
-                $parsedLine = ExtractorHelper::parseCommentType($propertyInfo->getDocComment());
-                if (in_array($parsedLine['tag'], ['var', 'type'])) {
-                    if (!$rawType && $parsedLine['type']) {
-                        $rawType = $parsedLine['type'];
-                        $childContext->className = $propertyInfo->getDeclaringClass()->getName();
+                foreach (explode("\n", $propertyInfo->getDocComment()) as $line) {
+                    $parsedLine = ExtractorHelper::parseCommentType($line);
+                    if (in_array($parsedLine['tag'], ['var', 'type'])) {
+                        if (!$rawType && $parsedLine['type']) {
+                            $rawType = $parsedLine['type'];
+                            $childContext->className = $propertyInfo->getDeclaringClass()->getName();
+                        }
                     }
                     if ($parsedLine['description']) {
                         $childContext->comment = $parsedLine['description'];

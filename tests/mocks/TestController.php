@@ -4,7 +4,7 @@ namespace steroids\swagger\tests\mocks;
 
 use yii\web\Controller;
 
-class AstController extends Controller
+class TestController extends Controller
 {
     public function actionScope()
     {
@@ -29,5 +29,23 @@ class AstController extends Controller
         return [
             'items' => $items,
         ];
+    }
+
+    /**
+     * @param int|null $pageSize Page size
+     * @return int
+     */
+    public function actionCustomGetParam(int $pageSize = null): int
+    {
+        return 1;
+    }
+
+    /**
+     * @param-post $query Search query
+     * @return int
+     */
+    public function actionCustomPostParam(): int
+    {
+        return 1;
     }
 }

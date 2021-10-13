@@ -219,18 +219,22 @@ abstract class AstExtractor
                     if (in_array($parsedLine['tag'], ['var', 'type'])) {
                         $parsedLines[] = $parsedLine;
 
-                        // Comment
-                        if ($parsedLine['description']) {
-                            $comments[] = $parsedLine['description'];
 
-                            // Scopes
-                            if (preg_match_all('/SCOPE_([A-Z0-9_]+)/', $parsedLine['description'], $scopeMatches)) {
-                                $context->addScopes(array_map(fn($s) => strtolower($s), $scopeMatches[1]));
-                            }
+                    }
+
+                    // Example
+                    if ($parsedLine['example']) {
+                        $examples[] = ExtractorHelper::fixJson($parsedLine['example']);
+                    }
+
+                    // Comment
+                    if ($parsedLine['description']) {
+                        $comments[] = $parsedLine['description'];
+
+                        // Scopes
+                        if (preg_match_all('/SCOPE_([A-Z0-9_]+)/', $parsedLine['description'], $scopeMatches)) {
+                            $context->addScopes(array_map(fn($s) => strtolower($s), $scopeMatches[1]));
                         }
-
-                    } elseif ($parsedLine['tag'] === 'example') {
-                        $examples[] = ExtractorHelper::fixJson($parsedLine['description']);
                     }
                 }
             }

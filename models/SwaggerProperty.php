@@ -164,9 +164,11 @@ class SwaggerProperty extends BaseObject implements ISwaggerProperty
                     }
 
                     // Get description from type param
-                    $parsedLine = ExtractorHelper::parseCommentType($this->phpdoc);
-                    if ($parsedLine['description']) {
-                        $this->description = $parsedLine['description'];
+                    foreach (explode("\n", $this->phpdoc) as $line) {
+                        $parsedLine = ExtractorHelper::parseCommentType($line);
+                        if ($parsedLine['description']) {
+                            $this->description = $parsedLine['description'];
+                        }
                     }
                 }
             }
