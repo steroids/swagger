@@ -2,15 +2,11 @@
 
 namespace steroids\swagger\controllers;
 
+use steroids\swagger\components\SwaggerBuilder;
 use steroids\swagger\helpers\TypeScriptHelper;
 use yii\helpers\Html;
 use yii\helpers\Url;
 use yii\web\Controller;
-use yii\helpers\ArrayHelper;
-use steroids\core\components\SiteMapItem;
-use steroids\swagger\models\SwaggerJson;
-use steroids\swagger\extractors\SiteMapDocExtractor;
-use yii\web\Response;
 
 class SwaggerController extends Controller
 {
@@ -74,22 +70,7 @@ class SwaggerController extends Controller
 
     protected function generateJson()
     {
-        $swaggerJson = new SwaggerJson(
-            [
-                'siteName' => \Yii::$app->name,
-                'hostName' => \Yii::$app->request->hostName,
-                'adminEmail' => ArrayHelper::getValue(\Yii::$app->params, 'adminEmail', ''),
-            ]
-        );
-
-        $siteItems = ArrayHelper::getValue(\Yii::$app->siteMap->getItem('api'), 'items', []);
-        $extractor = new SiteMapDocExtractor([
-            'items' => $siteItems,
-            'swaggerJson' => $swaggerJson,
-        ]);
-        $extractor->run();
-
-        return $swaggerJson->toArray();
+        return (new SwaggerBuilder())->buildJson();
     }
 
 }

@@ -4,10 +4,9 @@ namespace steroids\swagger\models;
 
 use steroids\swagger\events\SwaggerExportEvent;
 use yii\base\Component;
-use yii\base\InvalidConfigException;
 use yii\helpers\ArrayHelper;
 
-class SwaggerJson extends Component
+class SwaggerResult extends Component
 {
     const EVENT_EXPORT = 'export';
 
@@ -15,7 +14,13 @@ class SwaggerJson extends Component
     public $siteName;
     public $hostName;
     public $adminEmail;
+
     public SwaggerRefsStorage $refsStorage;
+
+    /**
+     * @var SwaggerAction[]
+     */
+    public array $actions = [];
 
     protected $tags = [];
     protected $paths = [];
@@ -27,71 +32,12 @@ class SwaggerJson extends Component
         $this->refsStorage = new SwaggerRefsStorage();
     }
 
-    public function addMethod()
-    {
-
-    }
-
     /**
-     * @param string $url
-     * @param string $method
-     * @param array $params
-     * @throws InvalidConfigException
+     * @param SwaggerAction[] $actions
      */
-    public function addPath($url, $method, $params)
+    public function addActions(array $actions)
     {
-        // Normalize
-        $url = '/' . ltrim($url, '/');
-
-        // Auto add tags
-        $tags = ArrayHelper::getValue($params, 'tags', []);
-        foreach ($tags as $tag) {
-            $this->addTag($tag);
-        }
-
-        // Add
-        $this->paths[$url][$method] = $params;
-    }
-
-    /**
-     * @param string $url
-     * @param string $method
-     * @param array $params
-     */
-    public function updatePath($url, $method, array $params)
-    {
-        // Normalize
-        $url = '/' . ltrim($url, '/');
-
-        // Update
-        $this->paths[$url][$method] = array_merge($this->paths[$url][$method], $params);
-    }
-
-    /**
-     * @param string|array $tag
-     * @throws InvalidConfigException
-     */
-    public function addTag($tag)
-    {
-        // Normalize
-        if (is_string($tag)) {
-            $tag = [
-                'name' => $tag,
-            ];
-        }
-
-        if (!isset($tag['name'])) {
-            throw new InvalidConfigException('Name is required for tag.');
-        }
-
-        // Check exists
-        $tagIds = ArrayHelper::getColumn($this->tags, 'name');
-        if (in_array($tag['name'], $tagIds)) {
-            return;
-        }
-
-        // Add
-        $this->tags[] = $tag;
+        $this->actions = array_merge($this->actions, $actions);
     }
 
     /**
@@ -116,10 +62,26 @@ class SwaggerJson extends Component
             'host' => $this->hostName,
             'basePath' => $this->getBasePath(),
             'schemes' => [\Yii::$app->request->isSecureConnection ? 'https' : 'http'],
-            'tags' => $this->tags,
-            'paths' => $this->paths,
+            'tags' => [],
+            'paths' => [],
             'definitions' => $this->refsStorage->exportDefinitions(),
         ];
+
+        // Add paths
+        $tags = [];
+        foreach ($this->actions as $action) {
+            // Export
+            $schema = $action->export();
+
+            // Add path schema
+            $json['paths'][$action->url][$action->httpMethod] = $schema;
+
+            // Add tags
+            $tags = array_merge($tags, ArrayHelper::getValue($schema, 'tags', []));
+        }
+
+        // Add tags
+        $json['tags'] = array_map(fn ($name) => ['name' => $name], array_unique($tags));
 
         $event = new SwaggerExportEvent([
             'json' => $json,
