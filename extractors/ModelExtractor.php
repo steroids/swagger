@@ -125,7 +125,6 @@ class ModelExtractor
             if (is_string($attributes)) {
                 $childContext = static::prepareContextByPath($childContext, explode('.', $attributes));
                 $items[] = ClassAttributeExtractor::extract($childContext, $childContext->attribute);
-                continue;
             }
         }
 
@@ -137,7 +136,7 @@ class ModelExtractor
         if (isset($refKey)) {
             $resultProperty->refName = $refKey;
             $resultProperty->refsStorage = $context->refsStorage;
-            $context->refsStorage->setRef($refKey, $resultProperty);
+            $context->refsStorage->setRef($className, $refKey, $resultProperty);
         }
 
         return $resultProperty;
@@ -188,16 +187,21 @@ class ModelExtractor
             if ($frontendFields !== null) {
                 $fields = [];
                 foreach ($scopes as $scope) {
-                    $fields = array_merge(
-                        $fields,
-                        ArrayHelper::getValue($frontendFields, $scope, []),
-                    );
+                    foreach (ArrayHelper::getValue($frontendFields, $scope, []) as $key => $value) {
+                        if (!is_int($key)) {
+                            $fields[$key] = $value;
+                        } elseif (!in_array($value, $fields) && !isset($fields[$value])) {
+                            $fields[] = $value;
+                        }
+                    }
                 }
             }
         }
+
         if (!$fields) {
             $fields = $model->fields();
         }
+
         return $fields;
     }
 }

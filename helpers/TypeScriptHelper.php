@@ -2,12 +2,93 @@
 
 namespace steroids\swagger\helpers;
 
+use steroids\swagger\models\SwaggerAction;
+use steroids\swagger\models\SwaggerProperty;
+use steroids\swagger\models\SwaggerRefsStorage;
 use yii\helpers\ArrayHelper;
+use yii\helpers\FileHelper;
+use yii\helpers\Inflector;
 use yii\helpers\Json;
 use yii\helpers\StringHelper;
 
 abstract class TypeScriptHelper
 {
+    /**
+     * @param SwaggerProperty[] $properties
+     * @param string $relativePath
+     * @param SwaggerRefsStorage $refsStorage
+     * @return string
+     */
+    public static function generateInterfaces(array $properties, string $relativePath, SwaggerRefsStorage $refsStorage, $isExportDefault = false)
+    {
+        $imports = [];
+        $interfaces = [];
+        foreach ($properties as $name => $property) {
+            $usedRefs = [];
+            $interfaces[] = 'export ' . ($isExportDefault ? 'default ' : '')
+                . 'interface ' . $name . ' ' . $property->exportTsType('', true, $usedRefs);
+            foreach ($usedRefs as $refName) {
+                $importPath = $refsStorage->getRefRelativePath($refName, $relativePath);
+                $importPath = preg_replace('/\.(ts|tsx|js|jsx)$/', '', $importPath);
+
+                $interfaceName = StringHelper::basename($importPath);
+                $imports[] = "import $interfaceName from '$importPath';";
+            }
+        }
+        $imports = array_unique($imports);
+
+        return implode(
+            "\n",
+            [
+                ...array_unique($imports),
+                ...(!empty($imports) ? [''] : []),
+                ...$interfaces,
+            ]
+        );
+    }
+
+
+    /**
+     * @param $actions
+     * @param $relativePath
+     * @param $refsStorage
+     * @return string
+     */
+    public static function generateApi($actions, $relativePath, $refsStorage)
+    {
+        $properties = [];
+
+        foreach ($actions as $action) {
+            if ($action->inputTsInterfaceName) {
+                $properties[$action->inputTsInterfaceName] = $action->inputProperty;
+            }
+            if ($action->outputTsInterfaceName) {
+                $properties[$action->outputTsInterfaceName] = $action->outputProperty;
+            }
+        }
+
+        return implode(
+            "\n",
+            [
+                "import {createMethod} from '@steroidsjs/core/components/ApiComponent';",
+                static::generateInterfaces($properties, $relativePath, $refsStorage),
+                '',
+                'export default {',
+                ...array_map(
+                    function ($action) {
+                        return '    ' . lcfirst(Inflector::id2camel($action->actionId)) . ': createMethod<' . $action->inputTsType . ', ' . $action->outputTsType . ">({\n"
+                            . "        method: '$action->httpMethod',\n"
+                            . "        url: '$action->url',\n"
+                            . "    }),";
+                    },
+                    $actions,
+                ),
+                '}',
+                '',
+            ]
+        );
+    }
+
     /**
      * @param array $json
      * @return string
@@ -30,10 +111,10 @@ abstract class TypeScriptHelper
     protected static function jsdoc(string $text, $level = 0)
     {
         return static::indent($level) . implode("\n" . static::indent($level), [
-            '/**',
-            ...array_map(fn(string $line) => ' * ' . $line, explode("\n", $text)),
-            ' */',
-        ]) . "\n";
+                '/**',
+                ...array_map(fn(string $line) => ' * ' . $line, explode("\n", $text)),
+                ' */',
+            ]) . "\n";
     }
 
     /**

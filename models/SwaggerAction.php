@@ -6,6 +6,12 @@ use steroids\swagger\extractors\ClassMethodExtractor;
 use yii\base\BaseObject;
 use yii\helpers\Inflector;
 
+/**
+ * @property-read string $inputTsType
+ * @property-read string $inputTsInterfaceName
+ * @property-read string $outputTsType
+ * @property-read string $outputTsInterfaceName
+ */
 class SwaggerAction extends BaseObject
 {
     public string $controllerClass;
@@ -18,6 +24,38 @@ class SwaggerAction extends BaseObject
     public ?SwaggerProperty $inputProperty;
     public ?SwaggerProperty $outputProperty;
 
+    public function getInputTsType()
+    {
+        return $this->inputTsInterfaceName ?: $this->inputProperty->exportTsType();
+    }
+
+    public function getInputTsInterfaceName()
+    {
+        if (!$this->inputProperty->items) {
+            return null;
+        }
+        return 'I' . (
+            $this->inputProperty->refName ?:
+                Inflector::id2camel($this->controllerId) . Inflector::id2camel($this->actionId) . 'Request'
+            );
+    }
+
+    public function getOutputTsType()
+    {
+        return $this->outputTsInterfaceName ?: $this->outputProperty->exportTsType();
+    }
+
+    public function getOutputTsInterfaceName()
+    {
+        if (!$this->outputProperty->items) {
+            return null;
+        }
+        return 'I' . (
+            $this->outputProperty->refName
+                ?: Inflector::id2camel($this->controllerId) . Inflector::id2camel($this->actionId) . 'Response'
+            );
+    }
+
     /**
      * @param SwaggerContext $context
      * @throws \ReflectionException
@@ -25,7 +63,10 @@ class SwaggerAction extends BaseObject
      */
     public function extract(SwaggerContext $context)
     {
-        $context = new SwaggerContext(['className' => $this->controllerClass, 'refsStorage' => $context->refsStorage]);
+        $context = new SwaggerContext([
+            'className' => $this->controllerClass,
+            'refsStorage' => $context->refsStorage,
+        ]);
 
         $this->inputProperty = ClassMethodExtractor::extract($context->child(['isInput' => true, 'isInputForGetMethod' => $this->httpMethod === 'get']), $this->methodName);
         $this->outputProperty = ClassMethodExtractor::extract($context->child(['isInput' => false]), $this->methodName);

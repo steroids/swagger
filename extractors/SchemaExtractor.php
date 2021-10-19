@@ -78,7 +78,7 @@ class SchemaExtractor
         if (isset($refKey)) {
             $resultProperty->refName = $refKey;
             $resultProperty->refsStorage = $context->refsStorage;
-            $context->refsStorage->setRef($refKey, $resultProperty);
+            $context->refsStorage->setRef($className, $refKey, $resultProperty);
         }
 
         return $resultProperty;

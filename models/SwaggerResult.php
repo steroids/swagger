@@ -10,7 +10,7 @@ class SwaggerResult extends Component
 {
     const EVENT_EXPORT = 'export';
 
-    public $version = '1.0.0';
+    public $version = 'v1';
     public $siteName;
     public $hostName;
     public $adminEmail;

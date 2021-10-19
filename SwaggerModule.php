@@ -16,6 +16,19 @@ class SwaggerModule extends Module implements BootstrapInterface
         'gii',
     ];
 
+    /**
+     * Директория до папки, где будет созданы *.ts файлы с интерфейсами апи
+     * @var string|null
+     */
+    public ?string $typesOutputDir = null;
+
+    public function init()
+    {
+        parent::init();
+
+        $this->typesOutputDir = STEROIDS_ROOT_DIR . '/types';
+    }
+
     public function bootstrap($app)
     {
         if (!YII_ENV_DEV || !YII_DEBUG) {

@@ -3,14 +3,18 @@
 namespace steroids\swagger\components;
 
 use steroids\core\components\SiteMapItem;
+use steroids\core\helpers\ClassFile;
+use steroids\swagger\helpers\TypeScriptHelper;
 use steroids\swagger\models\SwaggerAction;
 use steroids\swagger\models\SwaggerContext;
 use steroids\swagger\models\SwaggerResult;
 use steroids\swagger\SwaggerModule;
 use yii\base\Component;
 use yii\helpers\ArrayHelper;
+use yii\helpers\FileHelper;
 use yii\helpers\Inflector;
 use yii\helpers\StringHelper;
+use yii\web\Request;
 
 class SwaggerBuilder extends Component
 {
@@ -34,6 +38,54 @@ class SwaggerBuilder extends Component
         return $this->result->toArray();
     }
 
+    public function buildTypes()
+    {
+        $this->prepare();
+
+        $module = SwaggerModule::getInstance();
+
+        $controllerActions = [];
+
+        // Run extract
+        $context = new SwaggerContext(['refsStorage' => $this->result->refsStorage]);
+        foreach ($this->result->actions as $action) {
+            $action->extract($context);
+
+            // Create module directory
+            $moduleDir = $module->typesOutputDir . DIRECTORY_SEPARATOR . str_replace('.', DIRECTORY_SEPARATOR, $action->moduleId);
+            FileHelper::createDirectory($moduleDir);
+
+            // Create interfaces directory
+            $interfacesDir = $moduleDir . DIRECTORY_SEPARATOR . 'interfaces';
+            FileHelper::createDirectory($interfacesDir);
+
+            // Create api directory
+            $apiDir = $moduleDir . DIRECTORY_SEPARATOR . 'api';
+            FileHelper::createDirectory($apiDir);
+
+            // Controller file
+            $relativePath = str_replace('.', DIRECTORY_SEPARATOR, $action->moduleId)
+                . DIRECTORY_SEPARATOR . 'api'
+                . DIRECTORY_SEPARATOR . $action->controllerId . '.ts';
+            $controllerActions[$relativePath][] = $action;
+        }
+
+        foreach ($this->result->refsStorage->getAll() as $name => $property) {
+            $relativePath = $this->result->refsStorage->getRefRelativePath($name);
+            file_put_contents(
+                $module->typesOutputDir . DIRECTORY_SEPARATOR . $relativePath,
+                TypeScriptHelper::generateInterfaces([$name => $property], $relativePath, $this->result->refsStorage, true)
+            );
+        }
+
+        foreach ($controllerActions as $relativePath => $actions) {
+            file_put_contents(
+                $module->typesOutputDir . DIRECTORY_SEPARATOR . $relativePath,
+                TypeScriptHelper::generateApi($actions, $relativePath, $this->result->refsStorage)
+            );
+        }
+    }
+
     /**
      * @throws \yii\base\Exception
      * @throws \yii\base\InvalidConfigException
@@ -43,7 +95,7 @@ class SwaggerBuilder extends Component
         // Create json object
         $this->result = new SwaggerResult([
             'siteName' => \Yii::$app->name,
-            'hostName' => \Yii::$app->request->hostName,
+            'hostName' => \Yii::$app->request instanceof Request ? \Yii::$app->request->hostName : null,
             'adminEmail' => ArrayHelper::getValue(\Yii::$app->params, 'adminEmail', ''),
         ]);
 
@@ -104,6 +156,7 @@ class SwaggerBuilder extends Component
         $url = $item->urlRule;
         $url = preg_replace('/^([A-Z,]+)\s+/', '', $url);
         $url = preg_replace('/<([^>:]+)(:[^>]+)?>/', '{$1}', $url);
+        $url = str_replace('{version}', $this->result->version, $url);
         $url = '/' . ltrim($url, '/');
 
         // Get HTTP methods

@@ -8,6 +8,7 @@ use yii\base\BaseObject;
 use yii\base\Exception;
 use yii\helpers\ArrayHelper;
 use yii\helpers\Json;
+use yii\helpers\StringHelper;
 
 class SwaggerProperty extends BaseObject implements ISwaggerProperty
 {
@@ -179,7 +180,7 @@ class SwaggerProperty extends BaseObject implements ISwaggerProperty
             }
 
             $properties = null;
-            $required = null;
+            $required = null; // TODO
             if (!$this->isPrimitive && $this->items) {
                 $properties = [];
                 $required = [];
@@ -214,7 +215,7 @@ class SwaggerProperty extends BaseObject implements ISwaggerProperty
             }
         }
 
-        if ($this->isArray) {
+        if ($this->isArray && !$skipRefs) {
             for ($i = 0; $i < $this->arrayDepth; $i++) {
                 $schema = [
                     'type' => 'array',
@@ -225,8 +226,55 @@ class SwaggerProperty extends BaseObject implements ISwaggerProperty
 
         return $schema;
     }
+
+    public function exportTsType($indent = '', $skipRefs = false, &$usedRefs = [])
+    {
+        $type = 'any';
+
+        if (!$skipRefs && $this->refName) {
+            $type = 'I' . $this->refName;
+            $usedRefs[] = $this->refName;
+        } elseif (!empty($this->items)) {
+            return implode(
+                "\n",
+                [
+                    '{',
+                    ...array_map(
+                        function ($item) use ($indent, &$usedRefs) {
+                            $lines = [''];
+                            if ($item->description || $item->example) {
+                                $lines[] = '/**';
+                                if ($item->description) {
+                                    $lines[] = ' * ' . $item->description;
+                                }
+                                if ($item->example) {
+                                    $lines[] = ' * @example ' . ExtractorHelper::fixJson($item->example);
+                                }
+                                $lines[] = ' */';
+                            }
+                            $lines[] = $item->name . '?: ' . $item->exportTsType($indent . '    ', false, $usedRefs) . ',';
+
+                            return implode("\n", array_map(fn($line) => $indent . '    ' . $line, $lines));
+                        },
+                        $this->items,
+                    ),
+                    $indent . '}',
+                ]
+            );
+        } elseif ($this->isPrimitive && isset(self::SINGLE_MAPPING[$this->phpType]) && $this->phpType !== 'array') {
+            $type = self::SINGLE_MAPPING[$this->phpType];
+        }
+
+        // todo enum
+//        ...array_map(
+//        fn(string $value) => str_replace('"', "'", Json::encode($value)),
+//        ArrayHelper::getValue($property, 'enum', [])
+//    ),
+
+        if ($this->isArray) {
+            $type .= '[]';
+        }
+
+        return $type;
+    }
 }
-
-
-
-
