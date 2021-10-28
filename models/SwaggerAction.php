@@ -84,6 +84,9 @@ class SwaggerAction extends BaseObject
             'consumes' => [
                 'application/json'
             ],
+            'produces' => [
+                'application/json'
+            ],
             'parameters' => !$this->inputProperty->isEmpty()
                 ? [
                     [
