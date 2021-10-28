@@ -92,32 +92,24 @@ class SwaggerAction extends BaseObject
                         'schema' => $this->inputProperty->export(),
                     ]
                 ]
-                : null,
+                : [],
             'responses' => [
                 200 => [
                     'description' => 'Successful operation',
-                    'content' => [
-                        'application/json' => [
-                            'schema' => !$this->outputProperty->isEmpty() ? $this->outputProperty->export() : null,
-                        ],
-                    ],
+                    'schema' => !$this->outputProperty->isEmpty() ? $this->outputProperty->export() : null,
                 ],
                 400 => [
                     'description' => 'Validation errors',
-                    'content' => [
-                        'application/json' => [
-                            'schema' => $this->httpMethod !== 'delete'
-                                ? [
+                    'schema' => $this->httpMethod !== 'delete'
+                        ? [
+                            'type' => 'object',
+                            'properties' => [
+                                'errors' => [
                                     'type' => 'object',
-                                    'properties' => [
-                                        'errors' => [
-                                            'type' => 'object',
-                                        ],
-                                    ],
-                                ]
-                                : null,
-                        ],
-                    ],
+                                ],
+                            ],
+                        ]
+                        : null,
                 ],
             ],
         ];

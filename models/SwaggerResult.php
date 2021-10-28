@@ -81,7 +81,7 @@ class SwaggerResult extends Component
         }
 
         // Add tags
-        $json['tags'] = array_map(fn ($name) => ['name' => $name], array_unique($tags));
+        $json['tags'] = array_values(array_map(fn ($name) => ['name' => $name], array_unique($tags)));
 
         $event = new SwaggerExportEvent([
             'json' => $json,
