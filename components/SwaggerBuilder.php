@@ -20,11 +20,6 @@ class SwaggerBuilder extends Component
 {
     protected SwaggerResult $result;
 
-    public function init()
-    {
-        parent::init();
-    }
-
     public function buildJson()
     {
         $this->prepare();
@@ -51,18 +46,6 @@ class SwaggerBuilder extends Component
         foreach ($this->result->actions as $action) {
             $action->extract($context);
 
-            // Create module directory
-            $moduleDir = $module->typesOutputDir . DIRECTORY_SEPARATOR . str_replace('.', DIRECTORY_SEPARATOR, $action->moduleId);
-            FileHelper::createDirectory($moduleDir);
-
-            // Create interfaces directory
-            $interfacesDir = $moduleDir . DIRECTORY_SEPARATOR . 'interfaces';
-            FileHelper::createDirectory($interfacesDir);
-
-            // Create api directory
-            $apiDir = $moduleDir . DIRECTORY_SEPARATOR . 'api';
-            FileHelper::createDirectory($apiDir);
-
             // Controller file
             $relativePath = str_replace('.', DIRECTORY_SEPARATOR, $action->moduleId)
                 . DIRECTORY_SEPARATOR . 'api'
@@ -70,19 +53,43 @@ class SwaggerBuilder extends Component
             $controllerActions[$relativePath][] = $action;
         }
 
+        $counts = [];
         foreach ($this->result->refsStorage->getAll() as $name => $property) {
+            if (is_array($property->items)) {
+                foreach ($property->items as $item) {
+                    if ($item->refName) {
+                        if (!isset($counts[$item->refName])) {
+                            $counts[$item->refName] = 0;
+                        }
+                        $counts[$item->refName]++;
+                    }
+                }
+            }
+        }
+
+        foreach ($this->result->refsStorage->getAll() as $name => $property) {
+
             $relativePath = $this->result->refsStorage->getRefRelativePath($name);
+            FileHelper::createDirectory(dirname($module->typesOutputDir . DIRECTORY_SEPARATOR . $relativePath));
             file_put_contents(
                 $module->typesOutputDir . DIRECTORY_SEPARATOR . $relativePath,
-                TypeScriptHelper::generateInterfaces([$name => $property], $relativePath, $this->result->refsStorage, true)
+                TypeScriptHelper::generateInterfaces(['I' . $name => $property], $relativePath, $this->result->refsStorage, [],true)
             );
         }
 
         foreach ($controllerActions as $relativePath => $actions) {
+            FileHelper::createDirectory(dirname($module->typesOutputDir . DIRECTORY_SEPARATOR . $relativePath));
             file_put_contents(
                 $module->typesOutputDir . DIRECTORY_SEPARATOR . $relativePath,
                 TypeScriptHelper::generateApi($actions, $relativePath, $this->result->refsStorage)
             );
+        }
+
+        // Add utils.ts
+        $path = $module->typesOutputDir . DIRECTORY_SEPARATOR . 'utils.ts';
+        if (!file_exists($path)) {
+            FileHelper::createDirectory(dirname($path));
+            copy(dirname(__DIR__) . DIRECTORY_SEPARATOR . 'typescript' . DIRECTORY_SEPARATOR . 'utils.ts', $path);
         }
     }
 

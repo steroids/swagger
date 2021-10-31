@@ -110,6 +110,12 @@ class SwaggerTest extends TestCase
         );
     }
 
+    public function testGenericTypeInput()
+    {
+        $property = ClassMethodExtractor::extract(new SwaggerContext(['className' => TestController::class, 'isInput' => true]), 'actionGenericType');
+        $this->assertTrue($property->isEmpty());
+    }
+
     public function testGenericType()
     {
         $properties = AstExtractor::extract(new SwaggerContext(['className' => TestController::class]), 'actionGenericType');

@@ -61,7 +61,12 @@ class SwaggerRefsStorage extends BaseObject
 
     public function getRefCount(string $name)
     {
-        return ArrayHelper::getValue($this->counter, $name);
+        return ArrayHelper::getValue($this->counter, $name, 0);
+    }
+
+    public function increaseRefCount(string $name)
+    {
+        $this->counter[$name] = ArrayHelper::getValue($this->counter, $name, 0) + 1;
     }
 
     public function isInDefinitions(string $name): bool
@@ -72,7 +77,6 @@ class SwaggerRefsStorage extends BaseObject
 
     public function setRef(string $className, string $name, SwaggerProperty $value)
     {
-        $this->counter[$name] = ArrayHelper::getValue($this->counter, $name, 0) + 1;
         $this->properties[$name] = $value;
         $this->classNames[$name] = $className;
     }

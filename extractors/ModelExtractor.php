@@ -36,9 +36,11 @@ class ModelExtractor
             throw new \Exception('Invalid class name: ' . $className);
         }
 
+        $model = new $className();
+
         // Refs
-        if ($context->refsStorage && !$context->fields) {
-            $refKey = StringHelper::basename($className) . ($context->isInput ? 'Input' : '');
+        if ($context->refsStorage && !$context->fields && !$context->isInput && !($model instanceof FormModel)) {
+            $refKey = StringHelper::basename($className);
             if (!empty($context->scopes)) {
                 $refKey .= 'Scope';
                 foreach ($context->scopes ?: [] as $scope) {
@@ -49,8 +51,6 @@ class ModelExtractor
                 return $context->refsStorage->getRef($refKey);
             }
         }
-
-        $model = new $className();
 
         if ($context->isInput) {
             $fields = [];

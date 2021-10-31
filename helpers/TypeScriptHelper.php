@@ -2,11 +2,11 @@
 
 namespace steroids\swagger\helpers;
 
+use steroids\gii\helpers\GiiHelper;
 use steroids\swagger\models\SwaggerAction;
 use steroids\swagger\models\SwaggerProperty;
 use steroids\swagger\models\SwaggerRefsStorage;
 use yii\helpers\ArrayHelper;
-use yii\helpers\FileHelper;
 use yii\helpers\Inflector;
 use yii\helpers\Json;
 use yii\helpers\StringHelper;
@@ -19,14 +19,13 @@ abstract class TypeScriptHelper
      * @param SwaggerRefsStorage $refsStorage
      * @return string
      */
-    public static function generateInterfaces(array $properties, string $relativePath, SwaggerRefsStorage $refsStorage, $isExportDefault = false)
+    public static function generateInterfaces(array $properties, string $relativePath, SwaggerRefsStorage $refsStorage, $imports = [], $isExportDefault = false)
     {
-        $imports = [];
         $interfaces = [];
         foreach ($properties as $name => $property) {
             $usedRefs = [];
             $interfaces[] = 'export ' . ($isExportDefault ? 'default ' : '')
-                . 'interface ' . $name . ' ' . $property->exportTsType('', true, $usedRefs);
+                . "interface $name " . $property->exportTsType('', true, $usedRefs) . "\n";
             foreach ($usedRefs as $refName) {
                 $importPath = $refsStorage->getRefRelativePath($refName, $relativePath);
                 $importPath = preg_replace('/\.(ts|tsx|js|jsx)$/', '', $importPath);
@@ -40,7 +39,7 @@ abstract class TypeScriptHelper
         return implode(
             "\n",
             [
-                ...array_unique($imports),
+                ...$imports,
                 ...(!empty($imports) ? [''] : []),
                 ...$interfaces,
             ]
@@ -49,9 +48,9 @@ abstract class TypeScriptHelper
 
 
     /**
-     * @param $actions
+     * @param SwaggerAction[] $actions
      * @param $relativePath
-     * @param $refsStorage
+     * @param SwaggerRefsStorage $refsStorage
      * @return string
      */
     public static function generateApi($actions, $relativePath, $refsStorage)
@@ -67,12 +66,15 @@ abstract class TypeScriptHelper
             }
         }
 
+        // TODO Move gii method o core?
+        $utilsPath = GiiHelper::getRelativePath($relativePath, 'utils');
+
         return implode(
             "\n",
             [
-                "import {createMethod} from '@steroidsjs/core/components/ApiComponent';",
-                static::generateInterfaces($properties, $relativePath, $refsStorage),
-                '',
+                static::generateInterfaces($properties, $relativePath, $refsStorage, [
+                    "import {createMethod} from '$utilsPath';",
+                ]),
                 'export default {',
                 ...array_map(
                     function ($action) {
