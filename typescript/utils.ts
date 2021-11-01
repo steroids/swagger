@@ -4,8 +4,15 @@ interface IApiSendConfig {
     params?: Record<string, unknown>,
 }
 
+interface IResponseWrapper<IResponse> {
+    data: IResponse,
+    status?: number,
+    headers?: Record<string, unknown>,
+    [key: string]: unknown,
+}
+
 interface IApiComponent {
-    send?: <IResponse>(config: Record<string, unknown>) => Promise<IResponse>,
+    send?: <IResponse>(config: Record<string, unknown>) => Promise<IResponseWrapper<IResponse>>,
 }
 
 export const createMethod = <IRequest, IResponse = null>(
@@ -13,8 +20,8 @@ export const createMethod = <IRequest, IResponse = null>(
 ) => (
     api: IApiComponent,
     params: IRequest = null,
-    options: null,
-): Promise<IResponse> => api.send<IResponse>({
+    options: Record<string, unknown> = null,
+): Promise<IResponseWrapper<IResponse>> => api.send<IResponse>({
     ...config,
     params,
     options,

@@ -57,4 +57,10 @@ class TestController extends Controller
     {
         return 1;
     }
+
+    public function actionToFrontend()
+    {
+        $model = FooModel::findOrPanic(['id' => 1]);
+        return $model->toFrontend(null, null, [FooModel::SCOPE_DETAIL]);
+    }
 }

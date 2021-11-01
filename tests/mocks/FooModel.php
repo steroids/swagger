@@ -8,7 +8,6 @@ use steroids\core\base\Model;
  * Class FooModel
  * @package tests\mocks\FooModel
  * @property-read int $id Primary key
- * @property-read int $title Role
  */
 class FooModel extends Model
 {
@@ -23,7 +22,7 @@ class FooModel extends Model
                 'label' => 'Primary key from meta',
             ],
             'title' => [
-                'label' => 'Role from meta',
+                'label' => 'Title from meta',
             ],
             'role' => [
             ],
@@ -39,6 +38,7 @@ class FooModel extends Model
             ],
             self::SCOPE_DETAIL => [
                 'role',
+                'title',
             ],
         ];
     }

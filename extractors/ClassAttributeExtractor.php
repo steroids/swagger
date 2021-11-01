@@ -9,6 +9,7 @@ use steroids\swagger\helpers\ExtractorHelper;
 use steroids\swagger\models\SwaggerContext;
 use steroids\swagger\models\SwaggerProperty;
 use yii\db\ActiveQueryInterface;
+use yii\db\ActiveRecord;
 use yii\helpers\ArrayHelper;
 
 class ClassAttributeExtractor
@@ -25,7 +26,7 @@ class ClassAttributeExtractor
         // Find is class php doc (or parent classes)
         $nowClassInfo = $classInfo;
         while (true) {
-            if (preg_match('/@property(-read)? +([^ |\n]+) \$' . preg_quote($attribute) . '.*/u', $nowClassInfo->getDocComment(), $matchClass)) {
+            if (preg_match('/@property(-read)? +([^ |\n]+) \$' . preg_quote($attribute) . '(\n|\s)/u', $nowClassInfo->getDocComment(), $matchClass)) {
                 $rawType = $matchClass[2];
                 $childContext->comment = $matchClass[0];
             }
@@ -112,13 +113,24 @@ class ClassAttributeExtractor
         $property->name = $attribute;
         $property->phpdoc = $childContext->comment;
 
+        // Get description, label from relation atribute
+        if (is_subclass_of($childContext->className, ActiveRecord::class)) {
+            $relation = ExtractorHelper::safeGetRelation($childContext->className, $attribute);
+            if ($relation) {
+                $tmpProperty = static::extract($context, array_values($relation->link)[0]);
+                if (!$property->description) {
+                    $property->description = $tmpProperty->description;
+                }
+            }
+        }
+
         // Meta model
         if (method_exists($childContext->className, 'meta')
-            && $meta = ArrayHelper::getValue($childContext->className::meta(), $attribute)
-                && (
-                    is_subclass_of($childContext->className, \yii\base\Model::class)
-                    || is_subclass_of($childContext->className, BaseSchema::class)
-                )) {
+            && ($meta = ArrayHelper::getValue($childContext->className::meta(), $attribute))
+            && (
+                is_subclass_of($childContext->className, \yii\base\Model::class)
+                || is_subclass_of($childContext->className, BaseSchema::class)
+            )) {
             /** @var array $meta */
 
             // Required
@@ -127,10 +139,10 @@ class ClassAttributeExtractor
             }
 
             // Description & example
-            if ($property->description) {
+            if (!$property->description) {
                 $property->description = ArrayHelper::getValue($meta, 'label');
             }
-            if ($property->example) {
+            if (!$property->example) {
                 $property->example = ArrayHelper::getValue($meta, 'example');
             }
 

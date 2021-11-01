@@ -26,7 +26,9 @@ class SwaggerModule extends Module implements BootstrapInterface
     {
         parent::init();
 
-        $this->typesOutputDir = STEROIDS_ROOT_DIR . '/types';
+        if (!$this->typesOutputDir) {
+            $this->typesOutputDir = STEROIDS_ROOT_DIR . '/types';
+        }
     }
 
     public function bootstrap($app)

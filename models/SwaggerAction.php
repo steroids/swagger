@@ -8,9 +8,9 @@ use yii\helpers\Inflector;
 
 /**
  * @property-read string $inputTsType
- * @property-read string $inputTsInterfaceName
+ * @property-read string $inputRefName
  * @property-read string $outputTsType
- * @property-read string $outputTsInterfaceName
+ * @property-read string $outputRefName
  */
 class SwaggerAction extends BaseObject
 {
@@ -26,15 +26,15 @@ class SwaggerAction extends BaseObject
 
     public function getInputTsType()
     {
-        return $this->inputTsInterfaceName ?: $this->inputProperty->exportTsType();
+        return $this->inputRefName ?: $this->inputProperty->exportTsType();
     }
 
-    public function getInputTsInterfaceName()
+    public function getInputRefName()
     {
         if (!$this->inputProperty->items) {
             return null;
         }
-        return 'I' . (
+        return (
             $this->inputProperty->refName ?:
                 Inflector::id2camel($this->controllerId) . Inflector::id2camel($this->actionId) . 'Request'
             );
@@ -42,15 +42,15 @@ class SwaggerAction extends BaseObject
 
     public function getOutputTsType()
     {
-        return $this->outputTsInterfaceName ?: $this->outputProperty->exportTsType();
+        return $this->outputRefName ?: $this->outputProperty->exportTsType();
     }
 
-    public function getOutputTsInterfaceName()
+    public function getOutputRefName()
     {
         if (!$this->outputProperty->items) {
             return null;
         }
-        return 'I' . (
+        return (
             $this->outputProperty->refName
                 ?: Inflector::id2camel($this->controllerId) . Inflector::id2camel($this->actionId) . 'Response'
             );

@@ -23,15 +23,21 @@ abstract class TypeScriptHelper
     {
         $interfaces = [];
         foreach ($properties as $name => $property) {
-            $usedRefs = [];
-            $interfaces[] = 'export ' . ($isExportDefault ? 'default ' : '')
-                . "interface $name " . $property->exportTsType('', true, $usedRefs) . "\n";
-            foreach ($usedRefs as $refName) {
-                $importPath = $refsStorage->getRefRelativePath($refName, $relativePath);
+            if ($refsStorage->getRef($name) && !$isExportDefault) {
+                $importPath = $refsStorage->getRefRelativePath($name, $relativePath);
                 $importPath = preg_replace('/\.(ts|tsx|js|jsx)$/', '', $importPath);
+                $imports[] = "import I$name from '$importPath';";
+            } else {
+                $usedRefs = [];
+                $interfaces[] = 'export ' . ($isExportDefault ? 'default ' : '')
+                    . "interface I$name " . $property->exportTsType('', true, $usedRefs) . "\n";
+                foreach ($usedRefs as $refName) {
+                    $importPath = $refsStorage->getRefRelativePath($refName, $relativePath);
+                    $importPath = preg_replace('/\.(ts|tsx|js|jsx)$/', '', $importPath);
 
-                $interfaceName = StringHelper::basename($importPath);
-                $imports[] = "import $interfaceName from '$importPath';";
+                    $interfaceName = StringHelper::basename($importPath);
+                    $imports[] = "import $interfaceName from '$importPath';";
+                }
             }
         }
         $imports = array_unique($imports);
@@ -58,11 +64,11 @@ abstract class TypeScriptHelper
         $properties = [];
 
         foreach ($actions as $action) {
-            if ($action->inputTsInterfaceName) {
-                $properties[$action->inputTsInterfaceName] = $action->inputProperty;
+            if ($action->inputRefName) {
+                $properties[$action->inputRefName] = $action->inputProperty;
             }
-            if ($action->outputTsInterfaceName) {
-                $properties[$action->outputTsInterfaceName] = $action->outputProperty;
+            if ($action->outputRefName) {
+                $properties[$action->outputRefName] = $action->outputProperty;
             }
         }
 
@@ -75,18 +81,18 @@ abstract class TypeScriptHelper
                 static::generateInterfaces($properties, $relativePath, $refsStorage, [
                     "import {createMethod} from '$utilsPath';",
                 ]),
-                'export default {',
                 ...array_map(
                     function ($action) {
-                        return '    ' . lcfirst(Inflector::id2camel($action->actionId)) . ': createMethod<' . $action->inputTsType . ', ' . $action->outputTsType . ">({\n"
-                            . "        method: '$action->httpMethod',\n"
-                            . "        url: '$action->url',\n"
-                            . "    }),";
+                        $input = $action->inputTsType && $action->inputTsType !== 'any' ? 'I' . $action->inputTsType : 'null';
+                        $output = $action->outputTsType && $action->outputTsType !== 'any' ? 'I' . $action->outputTsType : 'null';
+                        $method = lcfirst(Inflector::id2camel($action->actionId));
+                        return "export const $method = createMethod<$input, $output>({\n"
+                            . "    method: '$action->httpMethod',\n"
+                            . "    url: '$action->url',\n"
+                            . "});\n";
                     },
                     $actions,
                 ),
-                '}',
-                '',
             ]
         );
     }

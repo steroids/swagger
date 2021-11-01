@@ -83,7 +83,7 @@ class ClassMethodExtractor
         }
 
         // Find return type in source AST
-        if (!$property && !$context->isInput) {
+        if (!$property) {
             $properties = AstExtractor::extract($childContext, $methodInfo->name);
             if (count($properties) > 0 && (!$childContext->isInput || !$properties[0]->isPrimitive)) {
                 $property = $properties[0];

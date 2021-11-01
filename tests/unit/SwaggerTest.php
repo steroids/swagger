@@ -16,6 +16,7 @@ use steroids\swagger\tests\mocks\ScopeController;
 use steroids\swagger\tests\mocks\ScopeControllerv;
 use steroids\swagger\tests\mocks\TestController;
 use yii\helpers\ArrayHelper;
+use yii\helpers\Json;
 
 class SwaggerTest extends TestCase
 {
@@ -41,6 +42,13 @@ class SwaggerTest extends TestCase
         $this->assertEquals('string', $property->items[1]->export()['type']);
         $this->assertEquals('Foo name', $property->items[1]->export()['description']);
         $this->assertEquals('object', $property->export()['type']);
+    }
+
+    public function testModelLabelFromMeta()
+    {
+        $property = ModelExtractor::extract(new SwaggerContext(['className' => FooModel::class, 'scopes' => [FooModel::SCOPE_DETAIL]]));
+        $this->assertEquals('title', $property->items[3]->name);
+        $this->assertEquals('{"type":"string","description":"Title from meta"}', Json::encode($property->items[3]->export()));
     }
 
     public function testMethodPhpdoc()
@@ -98,7 +106,7 @@ class SwaggerTest extends TestCase
         $this->assertEquals('foo', $properties[0]->items[0]->name);
         $this->assertEquals('Model with scope: SCOPE_DETAIL', $properties[0]->items[0]->description);
         $this->assertEquals(
-            'id,name,role',
+            'id,name,role,title',
             implode(',', ArrayHelper::getColumn($properties[0]->items[0]->items, 'name'))
         );
 
@@ -139,5 +147,11 @@ class SwaggerTest extends TestCase
     {
         $property = ClassMethodExtractor::extract(new SwaggerContext(['className' => TestController::class, 'isInput' => true]), 'actionCustomPostParam');
         $this->assertEquals('{"type":"object","properties":{"query":{"type":"string","description":"Search query"}}}', json_encode($property->export()));
+    }
+
+    public function testToFrontendCall()
+    {
+        $property = ClassMethodExtractor::extract(new SwaggerContext(['className' => TestController::class]), 'actionToFrontend');
+        $this->assertEquals('{"type":"object","properties":{"id":{"type":"number","description":"Primary key from meta"},"name":{"type":"string","description":"Foo name"},"role":{"type":"string"},"title":{"type":"string","description":"Title from meta"}}}', json_encode($property->export()));
     }
 }

@@ -89,7 +89,7 @@ abstract class AstExtractor
     protected static function nodeToProperty(SwaggerContext $context, $node, array $variables)
     {
         // Array list
-        if ($node instanceof Array_) {
+        if ($node instanceof Array_ && !$context->isInput) {
             $property = new SwaggerProperty();
             $property->items = [];
             foreach ($node->items as $i => $item) {
@@ -153,8 +153,8 @@ abstract class AstExtractor
             }
         }
 
-        // Active query findOne() and findAll() calls
-        if ($node instanceof StaticCall && in_array($node->name->name, ['findOne', 'findAll']) && count($node->class->parts) === 1) {
+        // Active query findOrPanic(), findOne() and findAll() calls
+        if ($node instanceof StaticCall && in_array($node->name->name, ['findOne', 'findAll', 'findOrPanic']) && count($node->class->parts) === 1) {
             $context->addScopes(static::findScopes($node));
 
             $property = ClassExtractor::extract(
@@ -182,18 +182,20 @@ abstract class AstExtractor
         }
 
         // Variable
+        $variableName = null;
         if ($node instanceof Variable && isset($variables[$node->name])) {
-            $parsedComment = static::parseNodeComments($context, $variables[$node->name]);
+            $variableName = $node->name;
+        } elseif ($node instanceof MethodCall && $node->var instanceof Variable && isset($variables[$node->var->name])) {
+            $variableName = $node->var->name;
+        }
+        if ($variableName) {
+            $parsedComment = static::parseNodeComments($context, $variables[$variableName]);
             if ($parsedComment['property']) {
                 return $parsedComment['property'];
             }
 
-            return static::nodeToProperty($context, $variables[$node->name]->expr, $variables);
-        } elseif ($node instanceof MethodCall && $node->var instanceof Variable && isset($variables[$node->var->name])) {
-            $parsedComment = static::parseNodeComments($context, $variables[$node->var->name]);
-            if ($parsedComment['property']) {
-                return $parsedComment['property'];
-            }
+            $context->addScopes(static::findScopes($node));
+            return static::nodeToProperty($context, $variables[$variableName]->expr, $variables);
         }
 
 

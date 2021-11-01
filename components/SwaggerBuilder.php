@@ -68,12 +68,11 @@ class SwaggerBuilder extends Component
         }
 
         foreach ($this->result->refsStorage->getAll() as $name => $property) {
-
             $relativePath = $this->result->refsStorage->getRefRelativePath($name);
             FileHelper::createDirectory(dirname($module->typesOutputDir . DIRECTORY_SEPARATOR . $relativePath));
             file_put_contents(
                 $module->typesOutputDir . DIRECTORY_SEPARATOR . $relativePath,
-                TypeScriptHelper::generateInterfaces(['I' . $name => $property], $relativePath, $this->result->refsStorage, [],true)
+                TypeScriptHelper::generateInterfaces([$name => $property], $relativePath, $this->result->refsStorage, [],true)
             );
         }
 
@@ -142,16 +141,18 @@ class SwaggerBuilder extends Component
             return [];
         }
 
-        // Get controller class
-        $controllerResult = \Yii::$app->createController($route);
-        $controllerClass = $controllerResult ? get_class($controllerResult[0]) : null;
-        if (!$controllerClass) {
-            return [];
-        }
-
         // Separate route to module, controller and action ids
         $moduleId = implode('.', array_filter(array_slice(explode('/', $route), 0, -2)));
         list($controllerId, $actionId) = array_slice(explode('/', $route), -2, 2);
+
+        // Get controller class
+        // TODO Нужно научиться правильно получать класс контроллера даже в консольном приложении
+        $controllerClass = 'app\\' . str_replace('.', '\\', $moduleId) . '\\controllers\\' . ucfirst(Inflector::id2camel($controllerId)) . 'Controller';
+        //$controllerResult = \Yii::$app->createController($route);
+        //$controllerClass = $controllerResult ? get_class($controllerResult[0]) : null;
+        if (!$controllerClass) {
+            return [];
+        }
 
         // Get method name
         $methodName = 'action' . Inflector::id2camel($actionId);

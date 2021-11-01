@@ -3,6 +3,7 @@
 namespace steroids\swagger\extractors;
 
 use steroids\core\base\FormModel;
+use steroids\core\base\SearchModel;
 use steroids\swagger\models\SwaggerContext;
 use steroids\swagger\models\SwaggerProperty;
 use yii\base\Exception;
@@ -39,7 +40,7 @@ class ModelExtractor
         $model = new $className();
 
         // Refs
-        if ($context->refsStorage && !$context->fields && !$context->isInput && !($model instanceof FormModel)) {
+        if ($context->refsStorage && !$context->fields && !$context->isInput && !($model instanceof FormModel) && !($model instanceof SearchModel)) {
             $refKey = StringHelper::basename($className);
             if (!empty($context->scopes)) {
                 $refKey .= 'Scope';
