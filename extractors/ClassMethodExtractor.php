@@ -122,7 +122,7 @@ class ClassMethodExtractor
             }
         }*/
         if (count($requestProperties) > 0) {
-            if (!$property) {
+            if (!$property || $property->isEmpty()) {
                 $property = new SwaggerProperty();
                 $property->items = $requestProperties;
             }

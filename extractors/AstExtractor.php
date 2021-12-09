@@ -20,6 +20,7 @@ use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Return_;
 use PhpParser\ParserFactory;
+use steroids\core\base\Model;
 use steroids\swagger\helpers\ExtractorHelper;
 use steroids\swagger\models\SwaggerContext;
 use steroids\swagger\models\SwaggerProperty;
@@ -235,7 +236,7 @@ abstract class AstExtractor
 
                         // Scopes
                         if (preg_match_all('/SCOPE_([A-Z0-9_]+)/', $parsedLine['description'], $scopeMatches)) {
-                            $context->addScopes(array_map(fn($s) => strtolower($s), $scopeMatches[1]));
+                            $context->addScopes(array_map(fn($s) => Model::SCOPE_PREFIX . strtolower($s), $scopeMatches[1]));
                         }
                     }
                 }
@@ -278,6 +279,10 @@ abstract class AstExtractor
 
         // TODO Find multiple
         $scope = $node ? mb_strtolower(preg_replace('/^SCOPE_/', '', $node->name->name)) : null;
+
+        if ($scope && strpos($scope, Model::SCOPE_PREFIX) !== 0) {
+            $scope = Model::SCOPE_PREFIX . $scope;
+        }
 
         return $scope ? [$scope] : [];
     }

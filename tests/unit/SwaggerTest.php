@@ -152,6 +152,6 @@ class SwaggerTest extends TestCase
     public function testToFrontendCall()
     {
         $property = ClassMethodExtractor::extract(new SwaggerContext(['className' => TestController::class]), 'actionToFrontend');
-        $this->assertEquals('{"type":"object","properties":{"id":{"type":"number","description":"Primary key from meta"},"name":{"type":"string","description":"Foo name"},"role":{"type":"string"},"title":{"type":"string","description":"Title from meta"}}}', json_encode($property->export()));
+        $this->assertEquals('{"type":"object","properties":{"id":{"type":"number","description":"Primary key"},"name":{"type":"string","description":"Foo name"},"role":{"type":"string"},"title":{"type":"string","description":"Title from meta"}}}', json_encode($property->export()));
     }
 }

@@ -43,13 +43,14 @@ class ModelExtractor
         if ($context->refsStorage && !$context->fields && !$context->isInput && !($model instanceof FormModel) && !($model instanceof SearchModel)) {
             $refKey = StringHelper::basename($className);
             if (!empty($context->scopes)) {
-                $refKey .= 'Scope';
-                foreach ($context->scopes ?: [] as $scope) {
-                    $refKey .= ucfirst($scope);
+                foreach ($context->scopes as $scope) {
+                    if ($scope !== \steroids\core\base\Model::SCOPE_LIST) {
+                        $refKey .= ucfirst(str_replace(\steroids\core\base\Model::SCOPE_PREFIX, '', $scope));
+                    }
                 }
             }
             if ($context->refsStorage->hasRef($refKey)) {
-                return $context->refsStorage->getRef($refKey);
+                return $context->refsStorage->getRef($refKey)->clone();
             }
         }
 
@@ -83,6 +84,7 @@ class ModelExtractor
             }
         }
 
+
         // Detect * => model.*
         foreach ($fields as $key => $name) {
             // Syntax: * => model.*
@@ -115,6 +117,21 @@ class ModelExtractor
                 'attribute' => $key,
                 'fields' => is_array($attributes) ? $attributes : null,
             ]);
+
+            // Scope: 'user' => [SCOPE_LIST],
+            if (!empty($attributes) && (is_string($attributes) || is_array($attributes))) {
+                $isAllScopes = true;
+                foreach ((array)$attributes as $scopeName) {
+                    if (strpos($scopeName, \steroids\core\base\Model::SCOPE_PREFIX) !== 0) {
+                        $isAllScopes = false;
+                        break;
+                    }
+                }
+                if ($isAllScopes) {
+                    $childContext->scopes = (array)$attributes;
+                    $attributes = $key;
+                }
+            }
 
             // Function: 'user' => function($model) { return ... },
             if (is_callable($attributes)) {

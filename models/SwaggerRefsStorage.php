@@ -28,6 +28,11 @@ class SwaggerRefsStorage extends BaseObject
         return $this->properties;
     }
 
+    /**
+     * @param string $name
+     * @return SwaggerProperty
+     * @throws \Exception
+     */
     public function getRef(string $name)
     {
         return ArrayHelper::getValue($this->properties, $name);
@@ -93,7 +98,3 @@ class SwaggerRefsStorage extends BaseObject
         return !empty($result) ? $result : (object)[];
     }
 }
-
-
-
-

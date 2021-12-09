@@ -113,13 +113,17 @@ abstract class ExtractorHelper
             $str = trim($str);
 
             // Tag
-            if (strpos($str, '@') === 0) {
+            if (!$result['tag'] && strpos($str, '@') === 0) {
                 $result['tag'] = substr($str, 1);
                 continue;
             }
 
             // Variable
-            if (strpos($str, '$') === 0) {
+            if (!$result['variable'] && strpos($str, '$') === 0) {
+                if ($result['description']) {
+                    $result['type'] = $result['description'];
+                    $result['description'] = null;
+                }
                 $result['variable'] = substr($str, 1);
                 continue;
             }

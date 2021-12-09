@@ -135,6 +135,26 @@ class SwaggerProperty extends BaseObject implements ISwaggerProperty
         return !$this->phpType && !$this->items;
     }
 
+    public function clone()
+    {
+        return new static([
+            'name' => $this->name,
+            'refName' => $this->refName,
+            'refsStorage' => $this->refsStorage,
+            'phpType' => $this->phpType,
+            'format' => $this->format,
+            'isRequired' => $this->isRequired,
+            'enum' => $this->enum,
+            'description' => $this->description,
+            'example' => $this->example,
+            'isArray' => $this->isArray,
+            'arrayDepth' => $this->arrayDepth,
+            'isPrimitive' => $this->isPrimitive,
+            'phpdoc' => $this->phpdoc,
+            'items' => $this->items,
+        ]);
+    }
+
     public function export($skipRefs = false)
     {
         if (!$skipRefs && $this->refName && $this->refsStorage && $this->refsStorage->isInDefinitions($this->refName)) {
@@ -254,7 +274,13 @@ class SwaggerProperty extends BaseObject implements ISwaggerProperty
                             }
                             $lines[] = $item->name . '?: ' . $item->exportTsType($indent . '    ', false, $usedRefs) . ',';
 
-                            return implode("\n", array_map(fn($line) => $indent . '    ' . $line, $lines));
+                            return implode(
+                                "\n",
+                                array_map(
+                                    fn($line) => $line ? $indent . '    ' . $line : '',
+                                    $lines,
+                                ),
+                            );
                         },
                         $this->items,
                     ),
@@ -263,6 +289,11 @@ class SwaggerProperty extends BaseObject implements ISwaggerProperty
             );
         } elseif ($this->isPrimitive && isset(self::SINGLE_MAPPING[$this->phpType]) && $this->phpType !== 'array') {
             $type = self::SINGLE_MAPPING[$this->phpType];
+        }
+
+        // TS linter recommendation - Don't use `object` as a type. The `object` type is currently hard to use.
+        if ($type === 'object') {
+            $type = 'Record<string, unknown>';
         }
 
         // todo enum

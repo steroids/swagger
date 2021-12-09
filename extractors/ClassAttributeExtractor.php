@@ -3,7 +3,6 @@
 namespace steroids\swagger\extractors;
 
 use steroids\core\base\BaseSchema;
-use steroids\core\base\Model;
 use steroids\core\base\Type;
 use steroids\swagger\helpers\ExtractorHelper;
 use steroids\swagger\models\SwaggerContext;
@@ -17,6 +16,7 @@ class ClassAttributeExtractor
     public static function prepare(SwaggerContext $context, string $attribute)
     {
         $rawType = '';
+        $description = null;
         $classInfo = new \ReflectionClass($context->className);
         $childContext = $context->child([
             'attribute' => $attribute,
@@ -26,10 +26,34 @@ class ClassAttributeExtractor
         // Find is class php doc (or parent classes)
         $nowClassInfo = $classInfo;
         while (true) {
-            if (preg_match('/@property(-read)? +([^ |\n]+) \$' . preg_quote($attribute) . '(\n|\s)/u', $nowClassInfo->getDocComment(), $matchClass)) {
-                $rawType = $matchClass[2];
-                $childContext->comment = $matchClass[0];
+            foreach (explode("\n", $nowClassInfo->getDocComment()) as $line) {
+                if (!preg_match('/@property(-read)/', $line)) {
+                    continue;
+                }
+                $parsedLine = ExtractorHelper::parseCommentType($line);
+                if ($parsedLine['variable'] === $attribute && $parsedLine['type']) {
+                    $rawType = $parsedLine['type'];
+                    if (!$description && $parsedLine['description']) {
+                        $description = $parsedLine['description'];
+                    }
+                    break;
+                }
             }
+            // TODO
+            // TODO
+            // TODO foreach lines...
+            // TODO
+            // TODO
+//            if (preg_match('/@property(-read)? +([^ |\n]+) \$' . preg_quote($attribute) . '(\s|\n)[^\n]*/u', $nowClassInfo->getDocComment(), $matchClass)) {
+//                $rawType = $matchClass[2];
+//                $parsedLine = ExtractorHelper::parseCommentType($matchClass[0]);
+//                if ($parsedLine['type']) {
+//                    $rawType = $parsedLine['type'];
+//                    if (!$description && $parsedLine['description']) {
+//                        $description = $parsedLine['description'];
+//                    }
+//                }
+//            }
 
             $nowClassInfo = $nowClassInfo->getParentClass();
             if (!$nowClassInfo) {
@@ -53,28 +77,40 @@ class ClassAttributeExtractor
                             $childContext->className = $propertyInfo->getDeclaringClass()->getName();
                         }
                     }
-                    if ($parsedLine['description']) {
-                        $childContext->comment = $parsedLine['description'];
+                    if (!$description && $parsedLine['description']) {
+                        $description = $parsedLine['description'];
                     }
                 }
             }
         }
 
         // Find in getter method
-        if (!$rawType) {
+        if (!$rawType || !$description) {
             $getter = 'get' . ucfirst($attribute);
             $methodInfo = $classInfo->hasMethod($getter) ? $classInfo->getMethod($getter) : null;
-            if ($methodInfo && preg_match('/@return +([^ |\n]+)/u', $methodInfo->getDocComment(), $matchMethod)) {
-                $rawType = $matchMethod[1];
-                $childContext->className = $methodInfo->getDeclaringClass()->getName();
-                $childContext->comment = $methodInfo->getDocComment();
+            if ($methodInfo) {
+                if (!$rawType && preg_match('/@return +([^ |\n]+)/u', $methodInfo->getDocComment(), $matchMethod)) {
+                    $rawType = $matchMethod[1];
+                    $childContext->className = $methodInfo->getDeclaringClass()->getName();
+                    $childContext->comment = $methodInfo->getDocComment();
+                }
+
+                if (!$description) {
+                    foreach (explode("\n", $methodInfo->getDocComment()) as $line) {
+                        $parsedLine = ExtractorHelper::parseCommentType($line);
+                        if ($parsedLine['description']) {
+                            $description = $parsedLine['description'];
+                            break;
+                        }
+                    }
+                }
             }
         }
 
         // Normalize
         $rawType = trim($rawType);
 
-        return [$childContext, $rawType];
+        return [$childContext, $rawType, $description];
     }
 
     /**
@@ -88,7 +124,7 @@ class ClassAttributeExtractor
     {
         $context->attribute = $attribute;
 
-        list($childContext, $rawType) = static::prepare($context, $attribute);
+        list($childContext, $rawType, $description) = static::prepare($context, $attribute);
 
         // Normalize
         $rawType = trim($rawType);
@@ -103,6 +139,7 @@ class ClassAttributeExtractor
                     'fields' => $childContext->fields,
                 ]);
                 $property = ModelExtractor::extract($relationContext);
+                $property->name = $attribute;
                 $property->isArray = $relation->multiple;
                 return $property;
             }
@@ -113,7 +150,12 @@ class ClassAttributeExtractor
         $property->name = $attribute;
         $property->phpdoc = $childContext->comment;
 
-        // Get description, label from relation atribute
+        // Get description from phpdoc
+        if (!$property->description && $description) {
+            $property->description = $description;
+        }
+
+        // Get description, label from relation attribute
         if (is_subclass_of($childContext->className, ActiveRecord::class)) {
             $relation = ExtractorHelper::safeGetRelation($childContext->className, $attribute);
             if ($relation) {

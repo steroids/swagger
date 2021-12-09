@@ -4,6 +4,7 @@ namespace steroids\swagger\components;
 
 use steroids\core\components\SiteMapItem;
 use steroids\core\helpers\ClassFile;
+use steroids\gii\helpers\GiiHelper;
 use steroids\swagger\helpers\TypeScriptHelper;
 use steroids\swagger\models\SwaggerAction;
 use steroids\swagger\models\SwaggerContext;
@@ -14,6 +15,7 @@ use yii\helpers\ArrayHelper;
 use yii\helpers\FileHelper;
 use yii\helpers\Inflector;
 use yii\helpers\StringHelper;
+use yii\web\JsExpression;
 use yii\web\Request;
 
 class SwaggerBuilder extends Component
@@ -39,6 +41,7 @@ class SwaggerBuilder extends Component
 
         $module = SwaggerModule::getInstance();
 
+        /** @var SwaggerAction[][] $controllerActions */
         $controllerActions = [];
 
         // Run extract
@@ -54,7 +57,7 @@ class SwaggerBuilder extends Component
         }
 
         $counts = [];
-        foreach ($this->result->refsStorage->getAll() as $name => $property) {
+        foreach ($this->result->refsStorage->getAll() as $property) {
             if (is_array($property->items)) {
                 foreach ($property->items as $item) {
                     if ($item->refName) {
@@ -90,6 +93,26 @@ class SwaggerBuilder extends Component
             FileHelper::createDirectory(dirname($path));
             copy(dirname(__DIR__) . DIRECTORY_SEPARATOR . 'typescript' . DIRECTORY_SEPARATOR . 'utils.ts', $path);
         }
+
+        // Add index.ts
+        $tree = [];
+        foreach ($controllerActions as $relativePath => $actions) {
+            foreach ($actions as $action) {
+                $tree[$action->moduleId][$action->controllerId] = $relativePath;
+            }
+        }
+        $content = "const api = {\n";
+        foreach ($tree as $moduleId => $actions) {
+            $content .= "    $moduleId: {\n";
+            foreach ($actions as $controllerId => $relativePath) {
+                $controllerId = lcfirst(Inflector::id2camel($controllerId));
+                $content .= "        $controllerId: require('./$relativePath'),\n";
+            }
+            $content .= "    },\n";
+        }
+        $content .= "}\n\n";
+        $content .= "export default api;\n";
+        file_put_contents($module->typesOutputDir . DIRECTORY_SEPARATOR . 'index.ts', $content);
     }
 
     /**

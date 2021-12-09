@@ -17,17 +17,19 @@ class SchemaExtractor
      */
     public static function extract(SwaggerContext $context, array $fields = null)
     {
+        if ($context->isInput) {
+            return new SwaggerProperty();
+        }
+
         $className = $context->className;
-//        $schemaName = (new \ReflectionClass($className))->getShortName();
-//        if (!isset($this->refs[$schemaName])) {
         /** @var BaseSchema $schema */
         $schema = new $className();
 
         // Refs
-        if ($context->refsStorage && !$fields && !$context->isInput) {
+        if ($context->refsStorage && !$fields) {
             $refKey = StringHelper::basename($className);
             if ($context->refsStorage->hasRef($refKey)) {
-                return $context->refsStorage->getRef($refKey);
+                return $context->refsStorage->getRef($refKey)->clone();
             }
         }
 
@@ -45,7 +47,6 @@ class SchemaExtractor
                 'attribute' => $key,
             ]);
 
-            $property = null;
             if (is_array($value)) {
                 // Relation
                 list($subContext) = ClassAttributeExtractor::prepare($context, 'model');
@@ -68,7 +69,6 @@ class SchemaExtractor
                 }
             }
         }
-
 
         $resultProperty = new SwaggerProperty([
             'items' => $items,
